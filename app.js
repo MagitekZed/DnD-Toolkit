@@ -236,11 +236,14 @@ function extractDiceOnly(expr){
 // Add a default attack entry to the round composer.
 function addAttackItem(item){
   const dmg = (item && item.dmg) || '1d8+3';
+  let abilityMod = 0;
+  try{ abilityMod = averageDiceTerms(parseDice(dmg)).flat; }catch{}
   round.push(Object.assign({
     kind:'attack', atk:5, ac:15, mode:'normal', halfling:false, crit:20, dmg,
     heavy:false, savageDice: extractDiceOnly(dmg),
     critBonusDice:"", critBonusFlat:0, critBonusDiceDouble:false,
-    cleave:false, graze:false, vex:false
+    cleave:false, graze:false, vex:false,
+    abilityMod
   }, item||{})); renderRound();
 }
 // Add a spell entry to the round composer.
@@ -264,7 +267,8 @@ function attackCard(idx,item){
       <div class="col2"><label>Vex</label><select data-field="vex"><option value="false" ${!item.vex?'selected':''}>Off</option><option value="true" ${item.vex?'selected':''}>On</option></select></div>
       <div class="col4"><label class="inline">GWM bonus uses this attack ${isProfile?'<span class="small">(selected)</span>':''}<span class="tip"><span class="tipdot">i</span><span class="tipbox small">If none selected, it uses the triggering Heavy attack.</span></span></label><div class="row"><button class="btn" data-action="setProfile">${isProfile?'Unset':'Set as GWM profile'}</button></div></div>
       <div class="col12"><label>Damage</label><input type="text" class="mono" data-field="dmg" value="${item.dmg}"/></div>
-      <div class="col12"><label class="inline">Weapon Dice (Savage) — dice only<span class="tip"><span class="tipdot">i</span><span class="tipbox small">Include only the weapon’s dice (e.g., 1d8). We auto-fill from Damage; override as needed.</span></span></label><input type="text" class="mono" data-field="savageDice" placeholder="e.g., 1d8 or 2d6+1d4" value="${item.savageDice||''}"/></div>
+      <div class="col6"><label class="inline">Weapon Dice (Savage) — dice only<span class="tip"><span class="tipdot">i</span><span class="tipbox small">Include only the weapon’s dice (e.g., 1d8). We auto-fill from Damage; override as needed.</span></span></label><input type="text" class="mono" data-field="savageDice" placeholder="e.g., 1d8 or 2d6+1d4" value="${item.savageDice||''}"/></div>
+      <div class="col6"><label>Ability Mod (Graze)</label><input type="number" data-field="abilityMod" value="${item.abilityMod||0}"/></div>
       <div class="col12 small"><span class="muted">On Crit: add the following bonus to this attack only</span></div>
       <div class="col5"><label>On Crit: Extra Dice</label><input type="text" class="mono" data-field="critBonusDice" placeholder="e.g., 1d8" value="${item.critBonusDice||''}"/></div>
       <div class="col3"><label>Dice double on crit?</label><select data-field="critBonusDiceDouble"><option value="false" ${!item.critBonusDiceDouble?'selected':''}>No</option><option value="true" ${item.critBonusDiceDouble?'selected':''}>Yes</option></select></div>
@@ -276,6 +280,8 @@ function attackCard(idx,item){
       <span class="tag"><span class="small">Exp dmg</span> <b class="mono" data-show="expected"></b></span>
       <span class="tag" title="Savage Attacker delta on a normal hit"><span class="small">Savage Δ (hit)</span> <b class="mono" data-show="savHit"></b></span>
       <span class="tag" title="Savage Attacker delta on a critical hit"><span class="small">Savage Δ (crit)</span> <b class="mono" data-show="savCrit"></b></span>
+    </div>
+    <div class="row" style="margin-top:4px;gap:8px;">
       <button class="btn" data-action="recalc">Recalc</button>
       <button class="btn danger" data-action="remove">Remove</button>
     </div>
@@ -322,6 +328,7 @@ function renderRound(){
         if (field==='crit') obj.crit = Number(val);
         if (field==='dmg') { obj.dmg = val; if (!obj.savageDice) obj.savageDice = extractDiceOnly(val); }
         if (field==='savageDice') obj.savageDice = val;
+        if (field==='abilityMod') obj.abilityMod = Number(val||0);
         if (field==='heavy') obj.heavy = (val==="true");
         if (field==='cleave') obj.cleave = (val==="true");
         if (field==='graze') obj.graze = (val==="true");
@@ -383,7 +390,7 @@ function recomputeRound(){
   const attackStats = [];
   let probAdv = 0;
   let grazeAdd = 0;
-  round.forEach(it=>{
+  round.forEach((it, idx)=>{
     if(it.kind==='attack'){
       const modeAdv = applyVexMode(it.mode,true);
       const outNorm = expectedDamageAttack(it.dmg, it.crit, it.mode, it.halfling, it.atk, it.ac, it.critBonusDice, it.critBonusFlat, it.critBonusDiceDouble);
@@ -396,7 +403,7 @@ function recomputeRound(){
       baseTotal += exp; atkCount++;
       let deltaHit=0, deltaCrit=0; const src=(it.savageDice && it.savageDice.trim())?it.savageDice:extractDiceOnly(it.dmg);
       if(src){ try{ deltaHit=deltaSavageForExpr(src,false); deltaCrit=deltaSavageForExpr(src,true); }catch{} }
-      let abilityMod=0; try{ abilityMod=averageDiceTerms(parseDice(it.dmg)).flat; }catch{}
+      const abilityMod = Number(it.abilityMod||0);
       let cleaveExp=0;
       if(it.cleave && src){
         const outExtra = expectedDamageAttack(src, it.crit, it.mode, it.halfling, it.atk, it.ac, "",0,false);
@@ -405,6 +412,14 @@ function recomputeRound(){
       }
       attackStats.push({ ...it, pHit, pCrit, pHitNoCrit, expBase:exp, deltaHit, deltaCrit, cleaveExp });
       if(it.graze) grazeAdd += abilityMod * (1 - pHit);
+
+      const card = els.roundList.querySelector(`.card[data-idx="${idx}"]`);
+      if(card){
+        card.querySelector('[data-show="phit"]').textContent = fmtPct(pHit);
+        card.querySelector('[data-show="pcrit"]').textContent = fmtPct(pCrit);
+        card.querySelector('[data-show="expected"]').textContent = fmtNum(exp);
+      }
+
       if(it.vex) probAdv = wAdv*outAdv.pHit + wNorm*outNorm.pHit; else probAdv = 0;
     } else {
       const s = expectedDamageSpellSave(it.dmg, it.dc, it.saveBonus, it.successRule, it.saveMode);
@@ -511,7 +526,8 @@ document.getElementById("addAttack").addEventListener("click", ()=> addAttackIte
   mode:document.getElementById("advantage").value,
   halfling:(document.getElementById("halflingLuck").value==="on"),
   crit:Number(document.getElementById("critStart").value),
-  dmg:document.getElementById("damageExpr").value
+  dmg:document.getElementById("damageExpr").value,
+  abilityMod:(()=>{try{ return averageDiceTerms(parseDice(document.getElementById("damageExpr").value)).flat; }catch{return 0;}})()
 }));
 document.getElementById("addBlank").addEventListener("click", ()=> addAttackItem());
 document.getElementById("addSpell").addEventListener("click", ()=> addSpellItem());
