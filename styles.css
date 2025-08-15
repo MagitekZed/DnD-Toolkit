@@ -69,7 +69,7 @@ input::placeholder{color:#677086}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;border:1px solid #2a3142;background:#0e1a2a;margin:2px 4px 0 0}
 .chip .x{cursor:pointer;opacity:.8}
 .cond-toggle{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:6px 0}
-.cond-toggle .cond-btn{background:#0e1320;border:1px solid #2a3142;border-radius:999px;padding:4px 8px;cursor:pointer;text-align:center}
+.cond-toggle .cond-btn{background:#0e1320;border:1px solid #2a3142;border-radius:999px;padding:4px 8px;cursor:pointer;text-align:center;color:#e8f6ff}
 .cond-toggle .cond-btn.active{background:#2b4a69;border-color:#74a7d8;color:#e8f6ff}
 .popover{position:absolute;background:#0f1320;border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.35);z-index:10;min-width:340px}
 
