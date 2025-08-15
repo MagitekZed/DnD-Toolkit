@@ -64,6 +64,37 @@ function rollD20Mode(mode){
   return a; // normal
 }
 
+// Detailed rollers (return individual dice results)
+function rollDiceExprDetailed(expr){
+  const terms = parseDice(expr);
+  let total = 0;
+  const parts = [];
+  for (const t of terms){
+    if (t.type==='flat'){
+      total += t.value;
+      parts.push({ type:'flat', value:t.value });
+    } else {
+      const n = Math.abs(t.n), sign = t.n>=0?1:-1;
+      const rolls=[];
+      for(let i=0;i<n;i++){ const r=rollDie(t.faces); rolls.push(r); total += sign*r; }
+      parts.push({ type:'dice', n:t.n, faces:t.faces, rolls });
+    }
+  }
+  return { total, parts };
+}
+function rollD20ModeDetailed(mode){
+  const rolls=[];
+  const a=rollDie(20); rolls.push(a);
+  if (mode==='adv' || mode==='dis'){ const b=rollDie(20); rolls.push(b); }
+  if (mode==='elven'){ const b=rollDie(20), c=rollDie(20); rolls.push(b,c); }
+  let result;
+  if (mode==='adv') result=Math.max(rolls[0],rolls[1]);
+  else if (mode==='dis') result=Math.min(rolls[0],rolls[1]);
+  else if (mode==='elven') result=Math.max(...rolls);
+  else result=rolls[0];
+  return { result, rolls, mode };
+}
+
 /************ DPR core ************/
 function pmfToCdf(p){ const c=Array(21).fill(0); let a=0; for(let r=1;r<=20;r++){ a+=p[r]; c[r]=a; } return c; }
 function baseD20PerDie(halfling=false){ const p=Array(21).fill(0); if(!halfling){for(let r=1;r<=20;r++)p[r]=1/20;return p;} p[1]=1/400; for(let r=2;r<=20;r++) p[r]=1/20+1/400; return p; }
@@ -417,7 +448,7 @@ document.getElementById("calcAvg").addEventListener("click", ()=>{
 (function initDPR(){ showOne(); renderRound(); const el=document.getElementById("breakdown"); el.style.display="none"; document.getElementById("toggleBreakdown").textContent="Show breakdown"; })();
 
 /************ Initiative Tracker ************/
-let initList = [];  // [{id, name, init, bonusExpr, dexMod, advMode, notes, conditions:[{name,duration}], showCond:false}]
+let initList = [];  // [{id, name, init, bonusExpr, dexMod, advMode, notes, conditions:[{name,duration}], initTooltip, showCond:false}]
 let currentTurn = 0; let idSeq = 1; let roundCounter = 1; const roundCounterEl = document.getElementById('roundCounter');
 const $ = sel => document.querySelector(sel);
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
@@ -453,11 +484,12 @@ function renderInit(){
       </div>`;
   root.innerHTML = header + initList.map((it,idx)=>{
     const chips = (it.conditions||[]).map((c,i)=>`<span class="chip" data-cond-idx="${i}">${escapeHtml(c.name)}${(c.duration||c.duration===0)?` (${c.duration})`:''}<span class="x" title="Remove">✕</span></span>`).join('');
+    const initTitle = it.initTooltip ? ` title="${escapeHtml(it.initTooltip).replace(/\n/g,'&#10;')}"` : '';
     return `
       <div class="init-row ${idx===currentTurn?'active':''}" data-id="${it.id}">
         <div class="turn-arrow">${idx===currentTurn? '➤' : ''}</div>
         <div class="init-name" contenteditable="true" data-field="name" spellcheck="false">${escapeHtml(it.name)}</div>
-        <div class="mono" contenteditable="true" data-field="init" spellcheck="false">${it.init ?? ''}</div>
+        <div class="mono" contenteditable="true" data-field="init" spellcheck="false"${initTitle}>${it.init ?? ''}</div>
         <div class="mono" contenteditable="true" data-field="bonusExpr" spellcheck="false">${escapeHtml(it.bonusExpr||'')}</div>
         <div class="row" style="gap:6px;justify-content:flex-start">
           <select data-field="advMode">
@@ -488,7 +520,7 @@ function renderInit(){
       ed.addEventListener('blur', ()=>{
         const field = ed.getAttribute('data-field'); const val = ed.innerText.trim();
         if (field==='name') obj.name = val || ('Creature '+obj.id);
-        if (field==='init') obj.init = Number(val||0);
+        if (field==='init') { obj.init = Number(val||0); obj.initTooltip = null; }
         if (field==='bonusExpr') obj.bonusExpr = val;
         if (field==='notes') obj.notes = val;
         if (document.getElementById('autoSort').value==='on' && (field==='init')) { sortInit(); }
@@ -514,14 +546,38 @@ function renderInit(){
 }
 
 function addCharacter({name, bonusExpr, dexMod, advMode}){
-  initList.push({ id:idSeq++, name:name||`Creature ${idSeq}`, init:0, bonusExpr:bonusExpr||'', dexMod:Number(dexMod||0), advMode:advMode||'normal', notes:'', conditions:[] });
+  initList.push({ id:idSeq++, name:name||`Creature ${idSeq}`, init:0, bonusExpr:bonusExpr||'', dexMod:Number(dexMod||0), advMode:advMode||'normal', notes:'', conditions:[], initTooltip:null });
   if (document.getElementById('autoSort').value==='on') sortInit(); renderInit();
 }
 
 function rollFor(ch){
-  const d20 = rollD20Mode(ch.advMode||'normal');
-  let bonus=0; if (ch.bonusExpr && ch.bonusExpr.trim()){ try{ bonus = rollDiceExpr(ch.bonusExpr); }catch{ bonus = 0; } }
-  ch.init = d20 + bonus; return ch.init;
+  const d20 = rollD20ModeDetailed(ch.advMode||'normal');
+  let bonus = 0;
+  const bonusLines=[];
+  if (ch.bonusExpr && ch.bonusExpr.trim()){
+    try{
+      const res = rollDiceExprDetailed(ch.bonusExpr);
+      bonus = res.total;
+      res.parts.forEach(p=>{
+        if (p.type==='flat'){
+          bonusLines.push(`${p.value>=0?'+':''}${p.value}`);
+        } else {
+          const sign = p.n>=0?'' : '-';
+          const label = `${Math.abs(p.n)}d${p.faces}`;
+          const rolls = p.rolls.join('+');
+          bonusLines.push(`${sign}${label}: ${rolls}`);
+        }
+      });
+    }catch{ bonus = 0; }
+  }
+  ch.init = d20.result + bonus;
+  const lines=[];
+  const modeLabel = d20.mode==='normal'?'':` (${d20.mode})`;
+  lines.push(`d20${modeLabel}: ${d20.result}` + (d20.rolls.length>1?` [${d20.rolls.join(', ')}]`:''));
+  bonusLines.forEach(l=>lines.push(l));
+  lines.push(`Total: ${ch.init}`);
+  ch.initTooltip = lines.join('\n');
+  return ch.init;
 }
 
 function rollAll(){ initList.forEach(ch=>rollFor(ch)); if (document.getElementById('autoSort').value==='on') sortInit(); renderInit(); }
@@ -541,7 +597,7 @@ function advanceTurn(){
 }
 
 function resetInitiative(){
-  initList.forEach(ch=>{ ch.init = 0; });
+  initList.forEach(ch=>{ ch.init = 0; ch.initTooltip = null; });
   currentTurn = 0; roundCounter = 1;
   renderInit();
 }
