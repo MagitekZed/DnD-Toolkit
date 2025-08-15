@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>D&D 5e Toolkit — DPR + Initiative</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>D&D 5e Toolkit</h1>
+    <p>DPR Calculator and Initiative Tracker</p>
+    <nav class="tabs">
+      <button class="tab active" data-tab="dpr">DPR Calculator</button>
+      <button class="tab" data-tab="init">Initiative Tracker</button>
+    </nav>
+    <div class="tabspacer"></div>
+  </header>
+
+  <!-- Pages -->
+  <section class="page active" id="page-dpr">
+    <main>
+      <!-- Attack Builder -->
+      <section class="card">
+        <h2>Attack Builder</h2>
+        <div class="grid" id="attackForm">
+          <div class="col2"><label>Attack Bonus</label><input id="atkBonus" type="number" value="7" /></div>
+          <div class="col2"><label>Target AC</label><input id="targetAC" type="number" value="15" /></div>
+          <div class="col3">
+            <label>Roll Mode</label>
+            <select id="advantage">
+              <option value="normal">Normal</option>
+              <option value="adv">Advantage (2d20kh1)</option>
+              <option value="elven">Elven Accuracy (3d20kh1)</option>
+              <option value="dis">Disadvantage (2d20kl1)</option>
+            </select>
+          </div>
+          <div class="col2">
+            <label>Halfling Luck</label>
+            <select id="halflingLuck"><option value="off">Off</option><option value="on">On</option></select>
+          </div>
+          <div class="col3">
+            <label>Crit Range (start)</label>
+            <select id="critStart"><option value="20" selected>20</option><option value="19">19</option><option value="18">18</option></select>
+          </div>
+          <div class="col12">
+            <label>Damage (dice expression; dice double on crit)</label>
+            <input id="damageExpr" type="text" class="mono" value="1d8+4" placeholder="e.g., 2d6+3+1d4" />
+          </div>
+          <div class="col6"><button class="btn primary" id="calcOne">Calculate This Attack</button></div>
+          <div class="col6"><button class="btn" id="addAttack">Add to Round (as Attack)</button></div>
+        </div>
+        <div class="row" id="oneResult" style="margin-top:12px; display:none;">
+          <span class="pill"><span class="small">P(hit)</span><b id="pHit"></b></span>
+          <span class="pill"><span class="small">P(crit)</span><b id="pCrit"></b></span>
+          <span class="pill"><span class="small">Avg on hit</span><b id="avgOnHit"></b></span>
+          <span class="pill"><span class="small">Avg on crit</span><b id="avgOnCrit"></b></span>
+          <span class="pill"><span class="small">Expected dmg</span><b id="expDmg"></b></span>
+        </div>
+        <div id="parseInfo" class="foot small mono"></div>
+      </section>
+
+      <!-- Round Composer -->
+      <section class="card">
+        <div class="inline">
+          <h2>Round Composer</h2>
+          <span class="tip">
+            <span class="tipdot" aria-label="Help" tabindex="0">i</span>
+            <span class="tipbox small">
+              <b>Total Expected Damage</b> = Base (all attacks &amp; spells) + Once/round bonus (first hit) + Savage Attacker (once/turn) + GWM bonus attack (first crit among Heavy).<br/>
+              Per‑attack <b>crit‑only bonuses</b> (dice/flat) are included in the attack’s base expectation.
+            </span>
+          </span>
+        </div>
+
+        <div class="section-title">Quick Add</div>
+        <div class="row">
+          <button class="btn" id="addBlank">+ Add blank attack</button>
+          <button class="btn" id="addSpell">+ Add spell (save)</button>
+          <button class="btn danger" id="clearRound">Clear all</button>
+        </div>
+
+        <div class="section-title">Once-per-Round Options</div>
+        <div class="grid gap8">
+          <div class="col6">
+            <label>Bonus Damage (once, to first hit among attacks)</label>
+            <input type="text" id="oneBonusExpr" class="mono" placeholder="e.g., 3d6 (Sneak Attack)" />
+          </div>
+          <div class="col3">
+            <label>Enabled</label>
+            <select id="oneBonusOn"><option value="off">Off</option><option value="on">On</option></select>
+          </div>
+          <div class="col3">
+            <label>Crits double dice</label>
+            <select id="oneBonusCrit"><option value="on">Yes</option><option value="off">No</option></select>
+          </div>
+
+          <div class="col6">
+            <label class="inline">Savage Attacker (once per turn)
+              <span class="tip"><span class="tipdot">i</span><span class="tipbox small">Reroll weapon dice, keep higher. On crit, double weapon dice first, then keep higher. Define “weapon dice” per attack below.</span></span>
+            </label>
+            <select id="savageOn"><option value="off">Off</option><option value="on">On</option></select>
+          </div>
+          <div class="col6">
+            <label>Savage Strategy</label>
+            <select id="savageStrat"><option value="preferCrits">Prefer Crits (fallback to first hit)</option><option value="firstHit">First Hit (crit or not)</option></select>
+          </div>
+        </div>
+
+        <div id="roundList" style="margin-top:10px;"></div>
+
+        <div id="roundSummary" style="margin-top:10px; display:none;">
+          <div class="row between">
+            <div class="row">
+              <div class="stat"><span class="small">Total Expected Damage (round)</span><b id="roundTotal" class="ok"></b></div>
+              <div class="stat"><span class="small">Attacks Count</span><b id="roundCount"></b></div>
+              <div class="stat"><span class="small">Spells Count</span><b id="roundSpellCount"></b></div>
+            </div>
+            <button class="btn" id="toggleBreakdown">Show breakdown</button>
+          </div>
+          <div id="breakdown" class="breakdown small mono" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- Dice averages helper -->
+      <section class="card full">
+        <h2>Dice Averages Helper</h2>
+        <div class="grid">
+          <div class="col9"><label>Dice Expression (supports + and -):</label><input id="avgExpr" type="text" class="mono" placeholder="e.g., 2d6+1d4+3-1d8" /></div>
+          <div class="col3"><button class="btn" id="calcAvg">Compute Average</button></div>
+        </div>
+        <div class="row" id="avgResult" style="margin-top: 10px; display:none;">
+          <span class="pill"><span class="small">Average</span><b id="avgValue"></b></span>
+          <span class="pill"><span class="small">Dice part</span><b id="avgDice"></b></span>
+          <span class="pill"><span class="small">Flat part</span><b id="avgFlat"></b></span>
+        </div>
+        <div id="avgBreak" class="foot small mono"></div>
+      </section>
+    </main>
+  </section>
+
+  <!-- Initiative Tracker -->
+  <section class="page" id="page-init">
+    <div class="init-wrap">
+      <div class="card">
+        <div class="row between wrap gap16">
+          <div>
+            <h2>Initiative Tracker</h2>
+            <div class="small muted">
+              Initiative Bonus is the actual bonus you roll with (usually includes DEX). The separate <b>DEX mod</b> here is for tiebreakers only.
+            </div>
+          </div>
+          <div class="row">
+            <div class="stat"><span class="small">Round</span><b id="roundCounter">1</b></div>
+          </div>
+        </div>
+
+        <div class="init-grid">
+          <div class="col4">
+            <label>Name</label>
+            <input id="initName" type="text" placeholder="e.g., Thia, Ogre, Goblin #1"/>
+          </div>
+          <div class="col4">
+            <label>Initiative Bonus (dice+flat)</label>
+            <input id="initBonusExpr" type="text" class="mono" placeholder="e.g., 1d4+3 or +5"/>
+          </div>
+          <div class="col2">
+            <label>DEX mod (tiebreak)</label>
+            <input id="dexMod" type="number" placeholder="e.g., 3"/>
+          </div>
+          <div class="col2">
+            <label>Advantage on Init?</label>
+            <select id="initAdv"><option value="normal">No</option><option value="adv">Advantage</option><option value="dis">Disadvantage</option></select>
+          </div>
+
+          <div class="col12 row">
+            <button class="btn primary" id="addInit">+ Add</button>
+            <button class="btn" id="rollAll">Roll All</button>
+            <button class="btn" id="advanceInit">Advance Turn</button>
+            <button class="btn" id="resetInit">Reset Rolls</button>
+            <button class="btn danger" id="clearInit">Clear Initiative</button>
+            <span class="small ml-auto">
+              <label class="inline">Auto-sort high→low
+                <select id="autoSort"><option value="on" selected>On</option><option value="off">Off</option></select>
+              </label>
+              <span class="tip"><span class="tipdot">i</span><span class="tipbox small">Sorting uses: total init desc → Dex mod desc → name asc → id asc.</span></span>
+            </span>
+          </div>
+        </div>
+
+        <div class="init-list" id="initList"></div>
+
+        <div class="foot small">
+          Tips: Click any field to edit inline. Use <span class="kbd">Roll All</span> to roll d20 (adv/dis) + your bonus expression. <span class="kbd">Advance Turn</span> cycles focus; when it wraps, the Round counter increases and timed conditions tick down.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
