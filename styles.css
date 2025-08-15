@@ -1,3 +1,4 @@
+/* Global styles for the D&D 5e Toolkit interface. */
 :root { --bg:#0f1115; --panel:#161922; --ink:#e6ebf5; --muted:#a7b0c0; --accent:#8bd3ff; --good:#72e6a0; --warn:#ffd27d; --bad:#ff9aa2; --line:#2a3142; }
 
 *{box-sizing:border-box}

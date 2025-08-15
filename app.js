@@ -1,3 +1,9 @@
+/**
+ * Client-side logic for the D&D 5e Toolkit web app.
+ * Handles tab navigation, dice rolling utilities, damage-per-round math
+ * and initiative tracking.
+ */
+
 /************ Tabs ************/
 const tabButtons = document.querySelectorAll('.tab');
 const pages = { dpr: document.getElementById('page-dpr'), init: document.getElementById('page-init') };
@@ -10,7 +16,13 @@ tabButtons.forEach(btn=>{
   });
 });
 
-/************ Dice Helpers ************/
+// ----- Dice Helpers -----
+// These utilities parse and roll common dice expressions.
+/**
+ * Parse a dice expression like "2d6+3" into an array of term objects.
+ * @param {string} expr - Dice expression to parse.
+ * @returns {Array<Object>} parsed terms.
+ */
 function parseDice(expr) {
   if (!expr || !expr.trim()) throw new Error("Empty expression.");
   const cleaned = expr.replace(/\s+/g, "").toLowerCase();
@@ -35,6 +47,11 @@ function parseDice(expr) {
   }
   return terms;
 }
+/**
+ * Compute the average result of a list of parsed dice terms.
+ * @param {Array<Object>} terms
+ * @returns {{diceAvg:number, flat:number, total:number, detail:string}}
+ */
 function averageDiceTerms(terms) {
   let diceAvg = 0, flat = 0, detail = [];
   for (const t of terms) {
@@ -43,7 +60,9 @@ function averageDiceTerms(terms) {
   }
   return { diceAvg, flat, total: diceAvg+flat, detail: detail.join(" ") };
 }
+// Roll a single die with `f` faces.
 function rollDie(f){ return 1 + Math.floor(Math.random()*f); }
+/** Roll a full dice expression and return the total. */
 function rollDiceExpr(expr){
   const terms = parseDice(expr);
   let total = 0;
@@ -56,6 +75,7 @@ function rollDiceExpr(expr){
   }
   return total;
 }
+/** Roll a d20 considering advantage/disadvantage modes. */
 function rollD20Mode(mode){
   const a = rollDie(20), b = rollDie(20), c = rollDie(20);
   if (mode==='adv') return Math.max(a,b);
@@ -65,6 +85,7 @@ function rollD20Mode(mode){
 }
 
 // Detailed rollers (return individual dice results)
+/** Roll an expression and keep each die result. */
 function rollDiceExprDetailed(expr){
   const terms = parseDice(expr);
   let total = 0;
@@ -82,6 +103,7 @@ function rollDiceExprDetailed(expr){
   }
   return { total, parts };
 }
+/** Detailed d20 roll with all individual dice kept. */
 function rollD20ModeDetailed(mode){
   const rolls=[];
   const a=rollDie(20); rolls.push(a);
@@ -95,12 +117,20 @@ function rollD20ModeDetailed(mode){
   return { result, rolls, mode };
 }
 
-/************ DPR core ************/
+// ----- Damage-per-Round core utilities -----
+/** Convert a probability mass function to cumulative distribution. */
 function pmfToCdf(p){ const c=Array(21).fill(0); let a=0; for(let r=1;r<=20;r++){ a+=p[r]; c[r]=a; } return c; }
+/** Base d20 probability, with optional halfling luck rerolls. */
 function baseD20PerDie(halfling=false){ const p=Array(21).fill(0); if(!halfling){for(let r=1;r<=20;r++)p[r]=1/20;return p;} p[1]=1/400; for(let r=2;r<=20;r++) p[r]=1/20+1/400; return p; }
+/** Probability mass of the max of `n` rolls from distribution `per`. */
 function pmfMaxOf(per,n){ const F=pmfToCdf(per), o=Array(21).fill(0); for(let k=1;k<=20;k++){ const a=F[k], b=k>1?F[k-1]:0; o[k]=Math.pow(a,n)-Math.pow(b,n);} return o; }
+/** Probability mass of the min of `n` rolls from distribution `per`. */
 function pmfMinOf(per,n){ const F=pmfToCdf(per), o=Array(21).fill(0); for(let k=1;k<=20;k++){ const t=Math.pow(1-(k>1?F[k-1]:0),n), t1=Math.pow(1-F[k],n); o[k]=t-t1; } return o; }
+/** Build a d20 probability mass for a roll mode. */
 function d20PMF(mode, halfling=false){ const per=baseD20PerDie(halfling); if(mode==='normal')return per; if(mode==='adv')return pmfMaxOf(per,2); if(mode==='elven')return pmfMaxOf(per,3); if(mode==='dis')return pmfMinOf(per,2); throw new Error("Unknown mode"); }
+/**
+ * Compute hit, crit and miss probabilities for an attack roll.
+ */
 function toHitProbs(attackBonus, AC, critStart, mode, halfling){
   const pmf=d20PMF(mode,halfling); let pCrit=0,pHitNoCrit=0,pMiss=0;
   for(let r=1;r<=20;r++){ const pr=pmf[r], isCrit=r>=critStart, autoMiss=r===1, autoHit=r===20;
@@ -110,6 +140,9 @@ function toHitProbs(attackBonus, AC, critStart, mode, halfling){
   const sum=pCrit+pHitNoCrit+pMiss; if(Math.abs(sum-1)>1e-9){ pCrit/=sum; pHitNoCrit/=sum; pMiss/=sum; }
   return { pCrit, pHitNoCrit, pMiss };
 }
+/**
+ * Expected damage for an attack roll with optional critical bonuses.
+ */
 function expectedDamageAttack(damageExpr, critStart, mode, halfling, attackBonus, AC, critBonusDiceExpr="", critBonusFlat=0, critBonusDiceDouble=false){
   const terms = parseDice(damageExpr);
   const baseAvg = averageDiceTerms(terms);
@@ -127,11 +160,13 @@ function expectedDamageAttack(damageExpr, critStart, mode, halfling, attackBonus
     avgOnHit, avgOnCrit, pCrit, pHit: pHitNoCrit+pCrit, pHitNoCrit, expected
   };
 }
+// Probability of passing a saving throw.
 function saveSuccessProb(saveBonus, DC, modeSave){
   const per = baseD20PerDie(false);
   const pmf = modeSave==='normal'?per: modeSave==='adv'? pmfMaxOf(per,2) : pmfMinOf(per,2);
   let pSucc=0; for(let r=1;r<=20;r++){ const pr=pmf[r]; if (r+saveBonus>=DC) pSucc+=pr; } return pSucc;
 }
+// Expected damage for spells that allow a saving throw.
 function expectedDamageSpellSave(dmgExpr, DC, saveBonus, successRule, modeSave){
   const terms = parseDice(dmgExpr);
   const avg = averageDiceTerms(terms).total;
@@ -139,6 +174,7 @@ function expectedDamageSpellSave(dmgExpr, DC, saveBonus, successRule, modeSave){
   const expected = successRule==='half' ? (1-pSucc)*avg + pSucc*(avg/2) : (1-pSucc)*avg;
   return { pSuccess:pSucc, pFail:1-pSucc, avg, expected };
 }
+// Probability mass of the sum of positive dice terms.
 function pmfDiceSum(terms){
   const dice=[]; for (const t of terms){ if (t.type==='dice'){ if (t.n<0) throw new Error("Savage dice cannot be negative."); for(let i=0;i<t.n;i++) dice.push(t.faces); } }
   if (!dice.length) return new Map([[0,1]]);
@@ -152,8 +188,11 @@ function pmfDiceSum(terms){
   }
   return pmf;
 }
+// Helper for Savage Attacker: PMF for doubled dice.
 function pmfDoubleDice(terms){ const doubled=terms.map(t=>t.type==='dice'?{type:'dice', n:t.n*2, faces:t.faces}:null).filter(Boolean); return pmfDiceSum(doubled); }
+// Compute expectation from a PMF map.
 function expectedFromPmf(pmf){ let e=0; for (const [v,p] of pmf.entries()) e+=v*p; return e; }
+// PMF of the max of two identical independent distributions.
 function pmfMaxOfTwo(pmf){
   const vals=Array.from(pmf.keys()).sort((a,b)=>a-b), probs=vals.map(v=>pmf.get(v)); const F=[]; let a=0;
   for (let i=0;i<vals.length;i++){ a+=probs[i]; F[i]=a; }
@@ -161,6 +200,7 @@ function pmfMaxOfTwo(pmf){
   for (let i=0;i<vals.length;i++){ out.set(vals[i], Math.pow(F[i],2)-Math.pow(i?F[i-1]:0,2)); }
   return out;
 }
+// Expected value delta from Savage Attacker for a dice expression.
 function deltaSavageForExpr(expr, isCrit){
   const terms = parseDice(expr).filter(t=>t.type==='dice' && t.n>0);
   if (!terms.length) return 0;
@@ -180,16 +220,20 @@ const els = {
   savageOn: document.getElementById("savageOn"), savageStrat: document.getElementById("savageStrat"),
   avgExpr: document.getElementById("avgExpr"), calcAvg: document.getElementById("calcAvg"), avgResult: document.getElementById("avgResult"), avgValue: document.getElementById("avgValue"), avgDice: document.getElementById("avgDice"), avgFlat: document.getElementById("avgFlat"), avgBreak: document.getElementById("avgBreak")
 };
+// Format decimal as percentage string.
 function fmtPct(x){ return (x*100).toFixed(1)+"%"; }
+// Format number with two decimals.
 function fmtNum(x){ return Number(x).toFixed(2); }
 
 const round = []; // items: attacks/spells
 let gwmProfileIndex = -1;
 
+// Extract only positive dice terms (e.g., "2d6" from full expression).
 function extractDiceOnly(expr){
   try{ const terms = parseDice(expr).filter(t=>t.type==='dice' && t.n>0); if (!terms.length) return ""; return terms.map(t=>`${t.n}d${t.faces}`).join("+"); }catch{ return ""; }
 }
 
+// Add a default attack entry to the round composer.
 function addAttackItem(item){
   const dmg = (item && item.dmg) || '1d8+3';
   round.push(Object.assign({
@@ -198,8 +242,10 @@ function addAttackItem(item){
     critBonusDice:"", critBonusFlat:0, critBonusDiceDouble:false
   }, item||{})); renderRound();
 }
+// Add a spell entry to the round composer.
 function addSpellItem(item){ round.push(Object.assign({ kind:'spell', dc:15, saveBonus:3, saveMode:'normal', successRule:'half', dmg:'3d8' }, item||{})); renderRound(); }
 
+// Render HTML for an attack card.
 function attackCard(idx,item){
   const isProfile = (gwmProfileIndex===idx);
   return `
@@ -232,6 +278,7 @@ function attackCard(idx,item){
     <div class="foot small mono" data-show="detail"></div>
   </div>`;
 }
+// Render HTML for a spell card.
 function spellCard(idx,item){
   return `
   <div class="card" data-idx="${idx}" data-kind="spell" style="margin-bottom:10px;">
@@ -253,6 +300,7 @@ function spellCard(idx,item){
     <div class="foot small mono" data-show="detail"></div>
   </div>`;
 }
+// Re-render the round composer list and summary.
 function renderRound(){
   els.roundList.innerHTML = round.map((it,idx)=> it.kind==='attack'?attackCard(idx,it):spellCard(idx,it)).join("");
   els.roundList.querySelectorAll(".card").forEach(card=>{
@@ -292,6 +340,7 @@ function renderRound(){
   });
   recomputeRound();
 }
+// Recalculate expected damage for an individual card.
 function recalcCard(card, item){
   try{
     if (item.kind==='attack'){
@@ -314,6 +363,7 @@ function recalcCard(card, item){
     card.style.borderColor = "#2a3142";
   }catch(e){ card.querySelectorAll('[data-show]').forEach(s=>s.textContent="—"); const exp = card.querySelector('[data-show="expected"]'); if (exp) exp.textContent = "Error"; card.querySelector('[data-show="detail"]').textContent = "Error: " + e.message; card.style.borderColor = "#5a2a33"; }
 }
+// Recompute totals for the entire round.
 function recomputeRound(){
   let baseTotal = 0, atkCount=0, spellCount=0; const attackStats = [];
   round.forEach(it=>{
@@ -387,6 +437,7 @@ function recomputeRound(){
     `+ GWM bonus attack: <b>${gwmAdd.toFixed(2)}</b><br>`+
     `<span class="muted">= Total</span> <b>${total.toFixed(2)}</b>`;
 }
+// Display single-attack results on the page.
 function showOne(){
   try{
     const out = expectedDamageAttack(
@@ -451,10 +502,12 @@ document.getElementById("calcAvg").addEventListener("click", ()=>{
 let initList = [];  // [{id, name, init, bonusExpr, dexMod, advMode, notes, conditions:[{name,duration}], initTooltip, showCond:false}]
 let currentTurn = 0; let idSeq = 1; let roundCounter = 1; const roundCounterEl = document.getElementById('roundCounter');
 const $ = sel => document.querySelector(sel);
+// Escape HTML entities to avoid injection.
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 
 const STD_CONDS = ["blinded","charmed","deafened","frightened","grappled","incapacitated","invisible","paralyzed","petrified","poisoned","prone","restrained","stunned","unconscious","concentrating"];
 
+// Sort initiative list by total, dex modifier, then name/id.
 function sortInit(){
   initList = initList.slice().sort((a,b)=>{
     if (b.init!==a.init) return b.init - a.init;
@@ -469,6 +522,7 @@ function sortInit(){
   } else currentTurn = 0;
 }
 
+// Draw the initiative tracker UI.
 function renderInit(){
   const root = document.getElementById('initList');
   if (!initList.length){ root.innerHTML = `<div class="small muted">No entries yet. Add participants above.</div>`; roundCounterEl.textContent = String(roundCounter); return; }
@@ -545,11 +599,13 @@ function renderInit(){
   roundCounterEl.textContent = String(roundCounter);
 }
 
+// Add a new character entry to the initiative list.
 function addCharacter({name, bonusExpr, dexMod, advMode}){
   initList.push({ id:idSeq++, name:name||`Creature ${idSeq}`, init:0, bonusExpr:bonusExpr||'', dexMod:Number(dexMod||0), advMode:advMode||'normal', notes:'', conditions:[], initTooltip:null });
   if (document.getElementById('autoSort').value==='on') sortInit(); renderInit();
 }
 
+// Roll initiative for a single character.
 function rollFor(ch){
   const d20 = rollD20ModeDetailed(ch.advMode||'normal');
   let bonus = 0;
@@ -580,8 +636,10 @@ function rollFor(ch){
   return ch.init;
 }
 
+// Roll initiative for all characters and re-render.
 function rollAll(){ initList.forEach(ch=>rollFor(ch)); if (document.getElementById('autoSort').value==='on') sortInit(); renderInit(); }
 
+// Decrease duration counters for conditions each round.
 function tickConditionsOneRound(){
   initList.forEach(ch=>{
     ch.conditions = (ch.conditions||[]).map(c=>({ ...c, duration: (c.duration||c.duration===0)? Math.max(0, c.duration-1): c.duration }))
@@ -589,6 +647,7 @@ function tickConditionsOneRound(){
   });
 }
 
+// Advance initiative to the next character.
 function advanceTurn(){
   if (!initList.length) return;
   const was = currentTurn; currentTurn = (currentTurn + 1) % initList.length;
@@ -596,15 +655,18 @@ function advanceTurn(){
   renderInit();
 }
 
+// Reset initiative rolls but keep list of characters.
 function resetInitiative(){
   initList.forEach(ch=>{ ch.init = 0; ch.initTooltip = null; });
   currentTurn = 0; roundCounter = 1;
   renderInit();
 }
+// Clear all initiative entries.
 function clearInitiative(){ initList = []; currentTurn = 0; idSeq = 1; roundCounter = 1; renderInit(); }
 
 // Condition popover with auto-left shift if overflow
 let condPopoverEl = null;
+// Popover UI to manage conditions on a character.
 function openCondPopover(anchorBtn, ch, idxEdit){
   closeCondPopover();
   const rect = anchorBtn.getBoundingClientRect();
@@ -678,6 +740,7 @@ function openCondPopover(anchorBtn, ch, idxEdit){
   });
   condPopoverEl.querySelector('#closeCond').addEventListener('click', closeCondPopover);
 }
+// Close the condition popover if open.
 function closeCondPopover(){ if (condPopoverEl){ condPopoverEl.remove(); condPopoverEl=null; } }
 window.addEventListener('click', (e)=>{ if (condPopoverEl && !condPopoverEl.contains(e.target) && !(e.target.closest && e.target.closest('.popover'))){ if (!e.target.matches('[data-act="conds"], .chip, .chip *')) closeCondPopover(); } });
 
