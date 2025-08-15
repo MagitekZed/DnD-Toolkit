@@ -13,10 +13,11 @@
 <body>
   <header>
     <h1>D&D 5e Toolkit</h1>
-    <p>DPR Calculator and Initiative Tracker</p>
+    <p>DPR Calculator, Initiative Tracker, and Notes</p>
     <nav class="tabs">
       <button class="tab active" data-tab="dpr">DPR Calculator</button>
       <button class="tab" data-tab="init">Initiative Tracker</button>
+      <button class="tab" data-tab="notes">Notes</button>
     </nav>
     <div class="tabspacer"></div>
   </header>
@@ -198,6 +199,18 @@
           Tips: Click any field to edit inline. Use <span class="kbd">Roll All</span> to roll d20 (adv/dis) + your bonus expression. <span class="kbd">Advance Turn</span> cycles focus; when it wraps, the Round counter increases and timed conditions tick down.
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- Notes -->
+  <section class="page" id="page-notes">
+    <div class="notes-wrap">
+      <h2>Notes</h2>
+      <div class="row notes-controls">
+        <button class="btn" id="addNote">Add Note</button>
+        <button class="btn danger" id="clearNotes">Clear All</button>
+      </div>
+      <div id="notesList" class="notes-list"></div>
     </div>
   </section>
 
