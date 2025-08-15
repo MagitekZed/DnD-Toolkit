@@ -260,6 +260,48 @@ const round = []; // items: attacks/spells
 let gwmProfileIndex = -1;
 let cleaveProfileIndex = -1;
 
+// Persist DPR settings to local storage
+function saveDPRState(){
+  const state = {
+    atkBonus: els.atkBonus.value,
+    targetAC: els.targetAC.value,
+    advantage: els.advantage.value,
+    halflingLuck: els.halflingLuck.value,
+    critStart: els.critStart.value,
+    damageExpr: els.damageExpr.value,
+    oneBonusExpr: els.oneBonusExpr.value,
+    oneBonusOn: els.oneBonusOn.value,
+    oneBonusCrit: els.oneBonusCrit.value,
+    savageOn: els.savageOn.value,
+    savageStrat: els.savageStrat.value,
+    round,
+    gwmProfileIndex,
+    cleaveProfileIndex
+  };
+  try{ localStorage.setItem('dprState', JSON.stringify(state)); }catch{}
+}
+
+function loadDPRState(){
+  try{
+    const data = JSON.parse(localStorage.getItem('dprState'));
+    if(!data) return;
+    els.atkBonus.value = data.atkBonus ?? els.atkBonus.value;
+    els.targetAC.value = data.targetAC ?? els.targetAC.value;
+    els.advantage.value = data.advantage ?? els.advantage.value;
+    els.halflingLuck.value = data.halflingLuck ?? els.halflingLuck.value;
+    els.critStart.value = data.critStart ?? els.critStart.value;
+    els.damageExpr.value = data.damageExpr ?? els.damageExpr.value;
+    els.oneBonusExpr.value = data.oneBonusExpr ?? '';
+    els.oneBonusOn.value = data.oneBonusOn ?? 'off';
+    els.oneBonusCrit.value = data.oneBonusCrit ?? 'on';
+    els.savageOn.value = data.savageOn ?? 'off';
+    els.savageStrat.value = data.savageStrat ?? 'preferCrits';
+    round.splice(0, round.length, ...((data.round)||[]));
+    gwmProfileIndex = data.gwmProfileIndex ?? -1;
+    cleaveProfileIndex = data.cleaveProfileIndex ?? -1;
+  }catch{}
+}
+
 // Extract only positive dice terms (e.g., "2d6" from full expression).
 function extractDiceOnly(expr){
   try{ const terms = parseDice(expr).filter(t=>t.type==='dice' && t.n>0); if (!terms.length) return ""; return terms.map(t=>`${t.n}d${t.faces}`).join("+"); }catch{ return ""; }
@@ -370,8 +412,8 @@ function renderRound(){
         if (field==='cleave') obj.cleave = (val==="true");
         if (field==='graze') obj.graze = (val==="true");
         if (field==='vex') obj.vex = (val==="true");
-        if (field==='gwmOnly'){ obj.gwmOnly = (val==="true"); recomputeRound(); }
-        if (field==='cleaveOnly'){ obj.cleaveOnly = (val==="true"); recomputeRound(); }
+        if (field==='gwmOnly') obj.gwmOnly = (val==="true");
+        if (field==='cleaveOnly') obj.cleaveOnly = (val==="true");
         if (field==='critBonusDice') obj.critBonusDice = val;
         if (field==='critBonusFlat') obj.critBonusFlat = Number(val||0);
         if (field==='critBonusDiceDouble') obj.critBonusDiceDouble = (val==="true");
@@ -382,6 +424,7 @@ function renderRound(){
         if (field==='successRule') obj.successRule = val;
         if (field==='dmg') obj.dmg = val;
       }
+      recomputeRound();
     });
 
     const setBtn = card.querySelector('[data-action="setProfile"]');
@@ -578,6 +621,7 @@ function recomputeRound(){
     `+ Graze damage on miss: <b>${grazeAdd.toFixed(2)}</b><br>`+
     `<span class="muted">= Total</span> <b>${total.toFixed(2)}</b><br>`+
     `Max (all dice max): <b>${maxTotal.toFixed(2)}</b>`;
+  saveDPRState();
 }
 // Display single-attack results on the page.
 function showOne(){
@@ -616,7 +660,7 @@ document.getElementById("addAttack").addEventListener("click", ()=> addAttackIte
 }));
 document.getElementById("addBlank").addEventListener("click", ()=> addAttackItem());
 document.getElementById("addSpell").addEventListener("click", ()=> addSpellItem());
-document.getElementById("clearRound").addEventListener("click", ()=>{ round.splice(0,round.length); gwmProfileIndex=-1; cleaveProfileIndex=-1; renderRound(); recomputeRound(); });
+document.getElementById("clearRound").addEventListener("click", ()=>{ round.splice(0,round.length); gwmProfileIndex=-1; cleaveProfileIndex=-1; renderRound(); recomputeRound(); localStorage.removeItem('dprState'); });
 ["oneBonusExpr","oneBonusOn","oneBonusCrit","savageOn","savageStrat"].forEach(id=>document.getElementById(id).addEventListener("input",recomputeRound));
 ["oneBonusOn","oneBonusCrit","savageOn","savageStrat"].forEach(id=>document.getElementById(id).addEventListener("change",recomputeRound));
 document.getElementById("toggleBreakdown").addEventListener("click", ()=>{
@@ -639,12 +683,30 @@ document.getElementById("calcAvg").addEventListener("click", ()=>{
     document.getElementById("avgBreak").textContent="Error: "+e.message;
   }
 });
-(function initDPR(){ showOne(); renderRound(); const el=document.getElementById("breakdown"); el.style.display="none"; document.getElementById("toggleBreakdown").textContent="Show breakdown"; })();
+['atkBonus','targetAC','advantage','halflingLuck','critStart','damageExpr'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener('input', saveDPRState);
+  el.addEventListener('change', saveDPRState);
+});
+(function initDPR(){ loadDPRState(); showOne(); renderRound(); const el=document.getElementById("breakdown"); el.style.display="none"; document.getElementById("toggleBreakdown").textContent="Show breakdown"; })();
 
 /************ Initiative Tracker ************/
 let initList = [];  // [{id, name, init, bonusExpr, dexMod, advMode, notes, conditions:[{name,duration}], initTooltip, showCond:false}]
 let currentTurn = 0; let idSeq = 1; let roundCounter = 1; const roundCounterEl = document.getElementById('roundCounter');
 const $ = sel => document.querySelector(sel);
+function saveInitState(){
+  try{ localStorage.setItem('initState', JSON.stringify({ initList, currentTurn, idSeq, roundCounter })); }catch{}
+}
+function loadInitState(){
+  try{
+    const data = JSON.parse(localStorage.getItem('initState'));
+    if(!data) return;
+    initList = data.initList || [];
+    currentTurn = data.currentTurn || 0;
+    idSeq = data.idSeq || 1;
+    roundCounter = data.roundCounter || 1;
+  }catch{}
+}
 // Escape HTML entities to avoid injection.
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 
@@ -668,7 +730,7 @@ function sortInit(){
 // Draw the initiative tracker UI.
 function renderInit(){
   const root = document.getElementById('initList');
-  if (!initList.length){ root.innerHTML = `<div class="small muted">No entries yet. Add participants above.</div>`; roundCounterEl.textContent = String(roundCounter); return; }
+  if (!initList.length){ root.innerHTML = `<div class="small muted">No entries yet. Add participants above.</div>`; roundCounterEl.textContent = String(roundCounter); saveInitState(); return; }
   const header = `
       <div class="init-header">
         <div>#</div>
@@ -740,6 +802,7 @@ function renderInit(){
     row.querySelector('[data-act="conds"]').addEventListener('click', (e)=>{ e.stopPropagation(); openCondPopover(e.currentTarget, obj); });
   });
   roundCounterEl.textContent = String(roundCounter);
+  saveInitState();
 }
 
 // Add a new character entry to the initiative list.
@@ -805,7 +868,7 @@ function resetInitiative(){
   renderInit();
 }
 // Clear all initiative entries.
-function clearInitiative(){ initList = []; currentTurn = 0; idSeq = 1; roundCounter = 1; renderInit(); }
+function clearInitiative(){ initList = []; currentTurn = 0; idSeq = 1; roundCounter = 1; renderInit(); localStorage.removeItem('initState'); }
 
 // Condition popover with auto-left shift if overflow
 let condPopoverEl = null;
@@ -903,6 +966,7 @@ document.getElementById('clearInit').addEventListener('click', clearInitiative);
 document.getElementById('autoSort').addEventListener('change', ()=>{ if (document.getElementById('autoSort').value==='on') { sortInit(); renderInit(); } });
 
 // initial render for tracker
+loadInitState();
 renderInit();
 
 /************ Notes ************/

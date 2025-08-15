@@ -11,6 +11,7 @@ and various dice utilities.
 - **Weapon Masteries** – toggle Cleave, Graze, and Vex effects in attack simulations.
 - **Initiative Tracker** – manage combat order with conditions and auto‑sorting.
 - **Dice Utilities** – roll expressions, compute averages and simulate advantage modes.
+- **Local Persistence** – DPR calculator, initiative tracker, and notes survive page refreshes via local storage.
 
 Open `index.html` in a modern browser to use the app. All logic runs locally in
 `app.js` with styling from `styles.css`.
