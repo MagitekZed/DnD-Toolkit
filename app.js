@@ -174,6 +174,33 @@ function expectedDamageSpellSave(dmgExpr, DC, saveBonus, successRule, modeSave){
   const expected = successRule==='half' ? (1-pSucc)*avg + pSucc*(avg/2) : (1-pSucc)*avg;
   return { pSuccess:pSucc, pFail:1-pSucc, avg, expected };
 }
+// Maximum possible total of a list of parsed dice terms.
+function maxFromTerms(terms, doubleDice=false){
+  let diceMax=0, flat=0;
+  for(const t of terms){
+    if(t.type==='flat') flat+=t.value;
+    else {
+      const n=t.n, faces=t.faces;
+      diceMax += (n>=0? n*faces : n*1);
+    }
+  }
+  return diceMax*(doubleDice?2:1)+flat;
+}
+// Maximum damage for an attack assuming a natural 20 hit/crit.
+function maxDamageAttack(damageExpr, critBonusDiceExpr="", critBonusFlat=0, critBonusDiceDouble=false){
+  try{
+    const base = maxFromTerms(parseDice(damageExpr), true);
+    let bonus = 0;
+    if(critBonusDiceExpr && critBonusDiceExpr.trim()){
+      bonus = maxFromTerms(parseDice(critBonusDiceExpr), critBonusDiceDouble);
+    }
+    return base + Number(critBonusFlat||0) + bonus;
+  }catch{ return 0; }
+}
+// Maximum damage for a spell save (assumes target fails).
+function maxDamageSpellSave(dmgExpr){
+  try{ return maxFromTerms(parseDice(dmgExpr), false); }catch{ return 0; }
+}
 // Probability mass of the sum of positive dice terms.
 function pmfDiceSum(terms){
   const dice=[]; for (const t of terms){ if (t.type==='dice'){ if (t.n<0) throw new Error("Savage dice cannot be negative."); for(let i=0;i<t.n;i++) dice.push(t.faces); } }
@@ -227,6 +254,7 @@ function fmtNum(x){ return Number(x).toFixed(2); }
 
 const round = []; // items: attacks/spells
 let gwmProfileIndex = -1;
+let cleaveProfileIndex = -1;
 
 // Extract only positive dice terms (e.g., "2d6" from full expression).
 function extractDiceOnly(expr){
@@ -243,6 +271,7 @@ function addAttackItem(item){
     heavy:false, savageDice: extractDiceOnly(dmg),
     critBonusDice:"", critBonusFlat:0, critBonusDiceDouble:false,
     cleave:false, graze:false, vex:false,
+    gwmOnly:false, cleaveOnly:false,
     abilityMod
   }, item||{})); renderRound();
 }
@@ -251,7 +280,8 @@ function addSpellItem(item){ round.push(Object.assign({ kind:'spell', dc:15, sav
 
 // Render HTML for an attack card.
 function attackCard(idx,item){
-  const isProfile = (gwmProfileIndex===idx);
+  const isGwmProfile = (gwmProfileIndex===idx);
+  const isCleaveProfile = (cleaveProfileIndex===idx);
   return `
   <div class="card" data-idx="${idx}" data-kind="attack" style="margin-bottom:10px;">
     <div class="row between"><div><b>Attack</b></div><div class="small">(#${idx+1})</div></div>
@@ -265,10 +295,13 @@ function attackCard(idx,item){
       <div class="col2"><label>Cleave</label><select data-field="cleave"><option value="false" ${!item.cleave?'selected':''}>Off</option><option value="true" ${item.cleave?'selected':''}>On</option></select></div>
       <div class="col2"><label>Graze</label><select data-field="graze"><option value="false" ${!item.graze?'selected':''}>Off</option><option value="true" ${item.graze?'selected':''}>On</option></select></div>
       <div class="col2"><label>Vex</label><select data-field="vex"><option value="false" ${!item.vex?'selected':''}>Off</option><option value="true" ${item.vex?'selected':''}>On</option></select></div>
-      <div class="col4"><label class="inline">GWM bonus uses this attack ${isProfile?'<span class="small">(selected)</span>':''}<span class="tip"><span class="tipdot">i</span><span class="tipbox small">If none selected, it uses the triggering Heavy attack.</span></span></label><div class="row"><button class="btn" data-action="setProfile">${isProfile?'Unset':'Set as GWM profile'}</button></div></div>
+      <div class="col4"><label class="inline">GWM bonus uses this attack ${isGwmProfile?'<span class="small">(selected)</span>':''}<span class="tip"><span class="tipdot">i</span><span class="tipbox small">If none selected, it uses the triggering Heavy attack.</span></span></label><div class="row"><button class="btn" data-action="setProfile">${isGwmProfile?'Unset':'Set as GWM profile'}</button></div></div>
+      <div class="col4"><label class="inline">Cleave uses this attack ${isCleaveProfile?'<span class="small">(selected)</span>':''}</label><div class="row"><button class="btn" data-action="setCleaveProfile">${isCleaveProfile?'Unset':'Set as Cleave profile'}</button></div></div>
       <div class="col12"><label>Damage</label><input type="text" class="mono" data-field="dmg" value="${item.dmg}"/></div>
       <div class="col6"><label class="inline">Weapon Dice (Savage) — dice only<span class="tip"><span class="tipdot">i</span><span class="tipbox small">Include only the weapon’s dice (e.g., 1d8). We auto-fill from Damage; override as needed.</span></span></label><input type="text" class="mono" data-field="savageDice" placeholder="e.g., 1d8 or 2d6+1d4" value="${item.savageDice||''}"/></div>
       <div class="col6"><label>Ability Mod (Graze)</label><input type="number" data-field="abilityMod" value="${item.abilityMod||0}"/></div>
+      <div class="col6"><label>Only for GWM?</label><select data-field="gwmOnly"><option value="false" ${!item.gwmOnly?'selected':''}>No</option><option value="true" ${item.gwmOnly?'selected':''}>Yes</option></select></div>
+      <div class="col6"><label>Only for Cleave?</label><select data-field="cleaveOnly"><option value="false" ${!item.cleaveOnly?'selected':''}>No</option><option value="true" ${item.cleaveOnly?'selected':''}>Yes</option></select></div>
       <div class="col12 small"><span class="muted">On Crit: add the following bonus to this attack only</span></div>
       <div class="col5"><label>On Crit: Extra Dice</label><input type="text" class="mono" data-field="critBonusDice" placeholder="e.g., 1d8" value="${item.critBonusDice||''}"/></div>
       <div class="col3"><label>Dice double on crit?</label><select data-field="critBonusDiceDouble"><option value="false" ${!item.critBonusDiceDouble?'selected':''}>No</option><option value="true" ${item.critBonusDiceDouble?'selected':''}>Yes</option></select></div>
@@ -333,6 +366,8 @@ function renderRound(){
         if (field==='cleave') obj.cleave = (val==="true");
         if (field==='graze') obj.graze = (val==="true");
         if (field==='vex') obj.vex = (val==="true");
+        if (field==='gwmOnly'){ obj.gwmOnly = (val==="true"); recomputeRound(); }
+        if (field==='cleaveOnly'){ obj.cleaveOnly = (val==="true"); recomputeRound(); }
         if (field==='critBonusDice') obj.critBonusDice = val;
         if (field==='critBonusFlat') obj.critBonusFlat = Number(val||0);
         if (field==='critBonusDiceDouble') obj.critBonusDiceDouble = (val==="true");
@@ -347,7 +382,9 @@ function renderRound(){
 
     const setBtn = card.querySelector('[data-action="setProfile"]');
     if (setBtn){ setBtn.addEventListener("click",()=>{ const current=(gwmProfileIndex===idx); gwmProfileIndex=current?-1:idx; renderRound(); recomputeRound(); }); }
-    card.querySelector('[data-action="remove"]').addEventListener("click",()=>{ round.splice(idx,1); if (gwmProfileIndex===idx) gwmProfileIndex=-1; if (gwmProfileIndex>idx) gwmProfileIndex--; renderRound(); recomputeRound(); });
+    const setCleaveBtn = card.querySelector('[data-action="setCleaveProfile"]');
+    if (setCleaveBtn){ setCleaveBtn.addEventListener("click",()=>{ const current=(cleaveProfileIndex===idx); cleaveProfileIndex=current?-1:idx; renderRound(); recomputeRound(); }); }
+    card.querySelector('[data-action="remove"]').addEventListener("click",()=>{ round.splice(idx,1); if (gwmProfileIndex===idx) gwmProfileIndex=-1; if (gwmProfileIndex>idx) gwmProfileIndex--; if (cleaveProfileIndex===idx) cleaveProfileIndex=-1; if (cleaveProfileIndex>idx) cleaveProfileIndex--; renderRound(); recomputeRound(); });
     const recalcBtn = card.querySelector('[data-action="recalc"]');
     if (recalcBtn){ recalcBtn.addEventListener("click",()=>{ recalcCard(card, round[idx]); recomputeRound(); }); }
     recalcCard(card, round[idx]);
@@ -390,8 +427,10 @@ function recomputeRound(){
   const attackStats = [];
   let probAdv = 0;
   let grazeAdd = 0;
+  const cleaveProfile = (cleaveProfileIndex>=0 && round[cleaveProfileIndex].kind==='attack')? round[cleaveProfileIndex]:null;
   round.forEach((it, idx)=>{
     if(it.kind==='attack'){
+      if(it.gwmOnly || it.cleaveOnly) return;
       const modeAdv = applyVexMode(it.mode,true);
       const outNorm = expectedDamageAttack(it.dmg, it.crit, it.mode, it.halfling, it.atk, it.ac, it.critBonusDice, it.critBonusFlat, it.critBonusDiceDouble);
       const outAdv = expectedDamageAttack(it.dmg, it.crit, modeAdv, it.halfling, it.atk, it.ac, it.critBonusDice, it.critBonusFlat, it.critBonusDiceDouble);
@@ -405,10 +444,15 @@ function recomputeRound(){
       if(src){ try{ deltaHit=deltaSavageForExpr(src,false); deltaCrit=deltaSavageForExpr(src,true); }catch{} }
       const abilityMod = Number(it.abilityMod||0);
       let cleaveExp=0;
-      if(it.cleave && src){
-        const outExtra = expectedDamageAttack(src, it.crit, it.mode, it.halfling, it.atk, it.ac, "",0,false);
-        cleaveExp = outExtra.expected;
-        if(abilityMod<0) cleaveExp += abilityMod*outExtra.pHit;
+      if(it.cleave){
+        if(cleaveProfile){
+          const outExtra = expectedDamageAttack(cleaveProfile.dmg, cleaveProfile.crit, cleaveProfile.mode, cleaveProfile.halfling, cleaveProfile.atk, cleaveProfile.ac, cleaveProfile.critBonusDice, cleaveProfile.critBonusFlat, cleaveProfile.critBonusDiceDouble);
+          cleaveExp = outExtra.expected;
+        } else if(src){
+          const outExtra = expectedDamageAttack(src, it.crit, it.mode, it.halfling, it.atk, it.ac, "",0,false);
+          cleaveExp = outExtra.expected;
+          if(abilityMod<0) cleaveExp += abilityMod*outExtra.pHit;
+        }
       }
       attackStats.push({ ...it, pHit, pCrit, pHitNoCrit, expBase:exp, deltaHit, deltaCrit, cleaveExp });
       if(it.graze) grazeAdd += abilityMod * (1 - pHit);
@@ -480,6 +524,40 @@ function recomputeRound(){
       prodNoCrit *= (1 - st.pCrit);
     }
   }
+  // Maximum damage if all dice roll their maximum values
+  let maxTotal = 0; let gwmUsed=false;
+  const gwmProfile = (gwmProfileIndex>=0 && round[gwmProfileIndex].kind==='attack')? round[gwmProfileIndex]:null;
+  const cleaveProfileMax = (cleaveProfileIndex>=0 && round[cleaveProfileIndex].kind==='attack')? round[cleaveProfileIndex]:null;
+  round.forEach(it=>{
+    if(it.kind==='attack'){
+      if(it.gwmOnly || it.cleaveOnly) return;
+      maxTotal += maxDamageAttack(it.dmg, it.critBonusDice, it.critBonusFlat, it.critBonusDiceDouble);
+      if(it.cleave){
+        let extra=0;
+        if(cleaveProfileMax){
+          extra = maxDamageAttack(cleaveProfileMax.dmg, cleaveProfileMax.critBonusDice, cleaveProfileMax.critBonusFlat, cleaveProfileMax.critBonusDiceDouble);
+        } else {
+          const src=(it.savageDice && it.savageDice.trim())?it.savageDice:extractDiceOnly(it.dmg);
+          if(src) extra = maxFromTerms(parseDice(src), true);
+        }
+        maxTotal += extra;
+      }
+      if(it.heavy && !gwmUsed){
+        let extra=0;
+        if(gwmProfile){
+          extra = maxDamageAttack(gwmProfile.dmg, gwmProfile.critBonusDice, gwmProfile.critBonusFlat, gwmProfile.critBonusDiceDouble);
+        } else {
+          extra = maxDamageAttack(it.dmg, it.critBonusDice, it.critBonusFlat, it.critBonusDiceDouble);
+        }
+        maxTotal += extra; gwmUsed=true;
+      }
+    } else if(it.kind==='spell'){
+      maxTotal += maxDamageSpellSave(it.dmg);
+    }
+  });
+  if(document.getElementById("oneBonusOn").value==="on" && document.getElementById("oneBonusExpr").value.trim()){
+    try{ const t=parseDice(document.getElementById("oneBonusExpr").value); maxTotal += maxFromTerms(t, document.getElementById("oneBonusCrit").value==="on"); }catch{}
+  }
   const total = baseTotal + bonusOnce + savageAdd + gwmAdd + cleaveAdd + grazeAdd;
   document.getElementById("roundSummary").style.display = (atkCount+spellCount) ? "" : "none";
   document.getElementById("roundTotal").textContent = total.toFixed(2);
@@ -492,7 +570,8 @@ function recomputeRound(){
     `+ GWM bonus attack: <b>${gwmAdd.toFixed(2)}</b><br>`+
     `+ Cleave extra attack: <b>${cleaveAdd.toFixed(2)}</b><br>`+
     `+ Graze damage on miss: <b>${grazeAdd.toFixed(2)}</b><br>`+
-    `<span class="muted">= Total</span> <b>${total.toFixed(2)}</b>`;
+    `<span class="muted">= Total</span> <b>${total.toFixed(2)}</b><br>`+
+    `Max (all dice max): <b>${maxTotal.toFixed(2)}</b>`;
 }
 // Display single-attack results on the page.
 function showOne(){
@@ -531,7 +610,7 @@ document.getElementById("addAttack").addEventListener("click", ()=> addAttackIte
 }));
 document.getElementById("addBlank").addEventListener("click", ()=> addAttackItem());
 document.getElementById("addSpell").addEventListener("click", ()=> addSpellItem());
-document.getElementById("clearRound").addEventListener("click", ()=>{ round.splice(0,round.length); gwmProfileIndex=-1; renderRound(); recomputeRound(); });
+document.getElementById("clearRound").addEventListener("click", ()=>{ round.splice(0,round.length); gwmProfileIndex=-1; cleaveProfileIndex=-1; renderRound(); recomputeRound(); });
 ["oneBonusExpr","oneBonusOn","oneBonusCrit","savageOn","savageStrat"].forEach(id=>document.getElementById(id).addEventListener("input",recomputeRound));
 ["oneBonusOn","oneBonusCrit","savageOn","savageStrat"].forEach(id=>document.getElementById(id).addEventListener("change",recomputeRound));
 document.getElementById("toggleBreakdown").addEventListener("click", ()=>{
