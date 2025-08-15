@@ -16,12 +16,14 @@ header p{margin:0;color:var(--muted)}
 .page.active{display:block}
 
 /* Layout */
-main{padding:18px;max-width:1580px;margin:0 auto;display:grid;gap:16px;grid-template-columns:1.1fr 1fr}
+main{padding:18px;max-width:1580px;margin:0 auto;display:grid;gap:16px;grid-template-columns:3fr 7fr}
 .card{background:var(--panel);border:1px solid #232836;border-radius:12px;padding:16px}
 .card h2{margin:0 0 10px;font-size:16px}
 
 .grid{display:grid;gap:10px;grid-template-columns:repeat(12,1fr);align-items:end}
+.col1{grid-column:span 1}
 .col12{grid-column:span 12}.col9{grid-column:span 9}.col6{grid-column:span 6}.col4{grid-column:span 4}.col3{grid-column:span 3}.col2{grid-column:span 2}
+.rowspan2{grid-row:span 2}
 .gap8{gap:8px}
 
 label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
