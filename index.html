@@ -5,7 +5,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>D&D 5e Toolkit — DPR, Initiative Tracker, and More!</title>
-  <link rel="stylesheet" href="styles.css" />
+  <script>
+    const ver = new Date(document.lastModified).getTime();
+    document.write(`<link rel="stylesheet" href="styles.css?v=${ver}">`);
+  </script>
 </head>
 <body>
   <header>
@@ -198,6 +201,9 @@
     </div>
   </section>
 
-  <script src="app.js"></script>
+  <script>
+    const ver = new Date(document.lastModified).getTime();
+    document.write(`<script src="app.js?v=${ver}"><\/script>`);
+  </script>
 </body>
 </html>
