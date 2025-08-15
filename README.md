@@ -8,6 +8,7 @@ and various dice utilities.
 
 - **DPR Calculator** – build attacks or spells and estimate expected damage.
 - **Round Composer** – combine multiple attacks/spells and apply once-per-round options.
+- **Weapon Masteries** – toggle Cleave, Graze, and Vex effects in attack simulations.
 - **Initiative Tracker** – manage combat order with conditions and auto‑sorting.
 - **Dice Utilities** – roll expressions, compute averages and simulate advantage modes.
 
