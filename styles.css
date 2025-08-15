@@ -60,19 +60,22 @@ input::placeholder{color:#677086}
 .init-wrap{padding:18px;max-width:1400px;margin:0 auto}
 .init-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
 .init-list{margin-top:12px;display:grid;gap:10px}
+.init-header{display:grid;grid-template-columns:50px 1.3fr 90px 110px 130px 1fr 220px;gap:10px;padding:0 10px;font-size:12px;color:#9fb0c7}
 .init-row{display:grid;grid-template-columns:50px 1.3fr 90px 110px 130px 1fr 220px;gap:10px;align-items:center;background:#0f1320;border:1px solid var(--line);border-radius:10px;padding:10px}
-.init-row.active{border-color:#2b4a69;box-shadow:0 0 0 2px rgba(139,211,255,0.15) inset}
+.init-row.active{border-color:#74a7d8;box-shadow:0 0 0 3px rgba(116,167,216,0.4) inset;background:#142133}
+.turn-arrow{text-align:center;font-size:24px}
 .init-name{font-weight:600}
 .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#0e1a2a;border:1px solid #2b4a69;border-radius:6px;padding:2px 6px}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;border:1px solid #2a3142;background:#0e1a2a;margin:2px 4px 0 0}
 .chip .x{cursor:pointer;opacity:.8}
-.cond-toggle{display:inline-grid;grid-auto-flow:column;gap:6px;margin:6px 0}
-.cond-toggle label{background:#0e1320;border:1px solid #2a3142;border-radius:999px;padding:4px 8px;cursor:pointer}
-.cond-toggle input{margin-right:6px}
+.cond-toggle{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:6px 0}
+.cond-toggle .cond-btn{background:#0e1320;border:1px solid #2a3142;border-radius:999px;padding:4px 8px;cursor:pointer;text-align:center}
+.cond-toggle .cond-btn.active{background:#2b4a69;border-color:#74a7d8;color:#e8f6ff}
 .popover{position:absolute;background:#0f1320;border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.35);z-index:10;min-width:340px}
 
 /* Responsive */
 @media (max-width: 1100px){ main{grid-template-columns:1fr} }
 @media (max-width: 1200px){
+  .init-header{grid-template-columns:40px 1.2fr 80px 100px 120px 1fr 1fr}
   .init-row{grid-template-columns:40px 1.2fr 80px 100px 120px 1fr 1fr}
 }
