@@ -315,6 +315,7 @@ function attackCard(idx,item){
     </div>
     <div class="row" style="margin-top:4px;gap:8px;">
       <button class="btn" data-action="recalc">Recalc</button>
+      <button class="btn" data-action="duplicate">Duplicate</button>
       <button class="btn danger" data-action="remove">Remove</button>
     </div>
     <div class="foot small mono" data-show="detail"></div>
@@ -384,6 +385,8 @@ function renderRound(){
     const setCleaveBtn = card.querySelector('[data-action="setCleaveProfile"]');
     if (setCleaveBtn){ setCleaveBtn.addEventListener("click",()=>{ const current=(cleaveProfileIndex===idx); cleaveProfileIndex=current?-1:idx; renderRound(); recomputeRound(); }); }
     card.querySelector('[data-action="remove"]').addEventListener("click",()=>{ round.splice(idx,1); if (gwmProfileIndex===idx) gwmProfileIndex=-1; if (gwmProfileIndex>idx) gwmProfileIndex--; if (cleaveProfileIndex===idx) cleaveProfileIndex=-1; if (cleaveProfileIndex>idx) cleaveProfileIndex--; renderRound(); recomputeRound(); });
+    const dupBtn = card.querySelector('[data-action="duplicate"]');
+    if (dupBtn){ dupBtn.addEventListener("click",()=>{ const copy = JSON.parse(JSON.stringify(round[idx])); round.splice(idx+1,0,copy); if (gwmProfileIndex>idx) gwmProfileIndex++; if (cleaveProfileIndex>idx) cleaveProfileIndex++; renderRound(); recomputeRound(); }); }
     const recalcBtn = card.querySelector('[data-action="recalc"]');
     if (recalcBtn){ recalcBtn.addEventListener("click",()=>{ recalcCard(card, round[idx]); recomputeRound(); }); }
     recalcCard(card, round[idx]);
