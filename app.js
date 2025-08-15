@@ -441,11 +441,21 @@ function sortInit(){
 function renderInit(){
   const root = document.getElementById('initList');
   if (!initList.length){ root.innerHTML = `<div class="small muted">No entries yet. Add participants above.</div>`; roundCounterEl.textContent = String(roundCounter); return; }
-  root.innerHTML = initList.map((it,idx)=>{
-    const chips = (it.conditions||[]).map((c,i)=>`<span class="chip" data-cond-idx="${i}">${escapeHtml(c.name)}${(c.duration||c.duration===0)?` (${c.duration})`:''}<span class="x" title="Remove" data-act="delcond">✕</span></span>`).join('');
+  const header = `
+      <div class="init-header">
+        <div>#</div>
+        <div>Name</div>
+        <div>Init</div>
+        <div>Bonus</div>
+        <div>Adv/Dex/Roll</div>
+        <div>Notes</div>
+        <div>Conditions / Actions</div>
+      </div>`;
+  root.innerHTML = header + initList.map((it,idx)=>{
+    const chips = (it.conditions||[]).map((c,i)=>`<span class="chip" data-cond-idx="${i}">${escapeHtml(c.name)}${(c.duration||c.duration===0)?` (${c.duration})`:''}<span class="x" title="Remove">✕</span></span>`).join('');
     return `
       <div class="init-row ${idx===currentTurn?'active':''}" data-id="${it.id}">
-        <div class="mono">${idx===currentTurn? '➡️' : '&nbsp;'}</div>
+        <div class="turn-arrow">${idx===currentTurn? '➤' : ''}</div>
         <div class="init-name" contenteditable="true" data-field="name" spellcheck="false">${escapeHtml(it.name)}</div>
         <div class="mono" contenteditable="true" data-field="init" spellcheck="false">${it.init ?? ''}</div>
         <div class="mono" contenteditable="true" data-field="bonusExpr" spellcheck="false">${escapeHtml(it.bonusExpr||'')}</div>
@@ -491,10 +501,14 @@ function renderInit(){
     });
     // Buttons
     row.querySelector('[data-act="remove"]').addEventListener('click', ()=>{ const idx0 = initList.findIndex(x=>x.id===id); if (idx0===-1) return; initList.splice(idx0,1); if (currentTurn >= initList.length) currentTurn = Math.max(0, initList.length-1); renderInit(); });
-    row.querySelector('[data-act="focus"]').addEventListener('click', ()=>{ const ix = Array.from(row.parentElement.children).indexOf(row); if (ix>=0) currentTurn = ix; renderInit(); });
+    row.querySelector('[data-act="focus"]').addEventListener('click', ()=>{ const ix = Array.from(root.querySelectorAll('.init-row')).indexOf(row); if (ix>=0) currentTurn = ix; renderInit(); });
     row.querySelector('[data-act="roll"]').addEventListener('click', ()=>{ rollFor(obj); if (document.getElementById('autoSort').value==='on'){ sortInit(); } renderInit(); });
-    row.querySelectorAll('[data-act="delcond"]').forEach(x=>x.addEventListener('click', ()=>{ const idxc = Number(x.parentElement.getAttribute('data-cond-idx')); obj.conditions.splice(idxc,1); renderInit(); }));
-    row.querySelector('[data-act="conds"]').addEventListener('click', (e)=> openCondPopover(e.currentTarget, obj) );
+    row.querySelectorAll('.chip').forEach(chip=>{
+      const idxc = Number(chip.getAttribute('data-cond-idx'));
+      chip.addEventListener('click', (e)=>{ if (e.target.classList.contains('x')) return; e.stopPropagation(); openCondPopover(chip, obj, idxc); });
+      chip.querySelector('.x').addEventListener('click', (e)=>{ e.stopPropagation(); obj.conditions.splice(idxc,1); renderInit(); });
+    });
+    row.querySelector('[data-act="conds"]').addEventListener('click', (e)=>{ e.stopPropagation(); openCondPopover(e.currentTarget, obj); });
   });
   roundCounterEl.textContent = String(roundCounter);
 }
@@ -535,28 +549,30 @@ function clearInitiative(){ initList = []; currentTurn = 0; idSeq = 1; roundCoun
 
 // Condition popover with auto-left shift if overflow
 let condPopoverEl = null;
-function openCondPopover(anchorBtn, ch){
+function openCondPopover(anchorBtn, ch, idxEdit){
   closeCondPopover();
   const rect = anchorBtn.getBoundingClientRect();
   condPopoverEl = document.createElement('div');
   condPopoverEl.className = 'popover';
+  const editing = typeof idxEdit === 'number';
+  const existing = editing ? ch.conditions[idxEdit] : null;
+  const selected = editing && STD_CONDS.includes(existing.name) ? existing.name : null;
+  const customName = editing && !STD_CONDS.includes(existing.name) ? existing.name : '';
+  const dur = editing ? (existing.duration ?? '') : '';
+  const customDur = editing && !STD_CONDS.includes(existing.name) ? (existing.duration ?? '') : '';
   condPopoverEl.innerHTML = `
-    <div class="small" style="margin-bottom:6px;">
-      Toggle standard conditions (each has its own counter). Add custom ones with optional duration.
-    </div>
-    <div class="cond-toggle">${STD_CONDS.map(n=>`<label><input type="checkbox" data-name="${n}" ${ch.conditions.some(c=>c.name===n)?'checked':''}/> ${n}</label>`).join('')}</div>
+    <div class="small" style="margin-bottom:6px;">Select conditions and set duration (rounds).</div>
+    <div class="cond-toggle">${STD_CONDS.map(n=>`<button type="button" class="cond-btn ${selected===n?'active':''}" data-name="${n}">${n}</button>`).join('')}</div>
     <div class="row" style="margin-top:6px;gap:8px;">
-      <label class="small">Set duration for checked (rounds)</label>
-      <input class="tiny" type="number" id="condDur" placeholder="e.g., 3"/>
-      <button class="btn" id="applyDur">Apply</button>
+      <label class="small">Duration</label>
+      <input class="tiny" type="number" id="condDur" placeholder="e.g., 3" value="${selected?dur:''}"/>
     </div>
     <div class="row" style="margin-top:8px;gap:8px;">
-      <input type="text" class="mono" id="customCondName" placeholder="Custom condition" style="flex:1"/>
-      <input class="tiny" type="number" id="customCondDur" placeholder="dur"/>
-      <button class="btn" id="addCustom">+ Add</button>
+      <input type="text" class="mono" id="customCondName" placeholder="Custom condition" style="flex:1" value="${customName}"/>
+      <input class="tiny" type="number" id="customCondDur" placeholder="dur" value="${customDur}"/>
     </div>
-    <div class="small" style="margin-top:8px;">Click a chip’s ✕ to remove. Chips decrement automatically each round when turns wrap.</div>
     <div class="row" style="justify-content:flex-end;margin-top:8px;gap:8px;">
+      <button class="btn" id="applyCond">${editing?'Update':'Add Selected'}</button>
       <button class="btn" id="closeCond">Close</button>
     </div>`;
   document.body.appendChild(condPopoverEl);
@@ -566,36 +582,48 @@ function openCondPopover(anchorBtn, ch){
   let top = window.scrollY + rect.bottom + margin;
   let left = window.scrollX + rect.left;
   if (left + popRect.width > window.scrollX + window.innerWidth - margin){
-    // shift left so it fits
     left = Math.max(window.scrollX + margin, window.scrollX + rect.right - popRect.width);
   }
   condPopoverEl.style.top = top + 'px';
   condPopoverEl.style.left = left + 'px';
 
-  // wire
-  condPopoverEl.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
-    cb.addEventListener('change', ()=>{
-      const name = cb.getAttribute('data-name');
-      if (cb.checked){ if (!ch.conditions.some(c=>c.name===name)) ch.conditions.push({name, duration: undefined}); }
-      else { ch.conditions = ch.conditions.filter(c=>c.name!==name); }
-      renderInit();
-      openCondPopover(anchorBtn, ch);
+  condPopoverEl.querySelectorAll('.cond-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if (editing){
+        condPopoverEl.querySelectorAll('.cond-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        condPopoverEl.querySelector('#customCondName').value='';
+        condPopoverEl.querySelector('#customCondDur').value='';
+      } else {
+        btn.classList.toggle('active');
+      }
     });
   });
-  condPopoverEl.querySelector('#applyDur').addEventListener('click', ()=>{
-    const d = Number(condPopoverEl.querySelector('#condDur').value||0);
-    ch.conditions = (ch.conditions||[]).map(c=> ({...c, duration: isFinite(d)&&d>0? d : undefined }));
-    renderInit(); openCondPopover(anchorBtn, ch);
+  condPopoverEl.querySelector('#customCondName').addEventListener('input', ()=>{
+    if (editing){ condPopoverEl.querySelectorAll('.cond-btn').forEach(b=>b.classList.remove('active')); }
   });
-  condPopoverEl.querySelector('#addCustom').addEventListener('click', ()=>{
-    const name = condPopoverEl.querySelector('#customCondName').value.trim();
-    const dur = condPopoverEl.querySelector('#customCondDur').value.trim();
-    if (name){ ch.conditions.push({ name, duration: dur? Number(dur): undefined }); renderInit(); openCondPopover(anchorBtn, ch); }
+  condPopoverEl.querySelector('#applyCond').addEventListener('click', ()=>{
+    const actives = Array.from(condPopoverEl.querySelectorAll('.cond-btn.active')).map(b=>b.getAttribute('data-name'));
+    const durStd = condPopoverEl.querySelector('#condDur').value.trim();
+    const cName = condPopoverEl.querySelector('#customCondName').value.trim();
+    const cDur = condPopoverEl.querySelector('#customCondDur').value.trim();
+    if (editing){
+      if (actives.length){
+        ch.conditions[idxEdit] = { name: actives[0], duration: durStd?Number(durStd):undefined };
+      } else if (cName){
+        ch.conditions[idxEdit] = { name: cName, duration: cDur?Number(cDur):undefined };
+      }
+    } else {
+      actives.forEach(n=>{ if (!ch.conditions.some(c=>c.name===n)) ch.conditions.push({ name:n, duration: durStd?Number(durStd):undefined }); });
+      if (cName && !ch.conditions.some(c=>c.name===cName)){ ch.conditions.push({ name:cName, duration: cDur?Number(cDur):undefined }); }
+    }
+    renderInit();
+    closeCondPopover();
   });
   condPopoverEl.querySelector('#closeCond').addEventListener('click', closeCondPopover);
 }
 function closeCondPopover(){ if (condPopoverEl){ condPopoverEl.remove(); condPopoverEl=null; } }
-window.addEventListener('click', (e)=>{ if (condPopoverEl && !condPopoverEl.contains(e.target) && !(e.target.closest && e.target.closest('.popover'))){ if (!e.target.matches('[data-act="conds"]')) closeCondPopover(); } });
+window.addEventListener('click', (e)=>{ if (condPopoverEl && !condPopoverEl.contains(e.target) && !(e.target.closest && e.target.closest('.popover'))){ if (!e.target.matches('[data-act="conds"], .chip, .chip *')) closeCondPopover(); } });
 
 // Controls
 document.getElementById('addInit').addEventListener('click', ()=>{
