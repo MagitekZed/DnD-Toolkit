@@ -13,9 +13,10 @@
 <body>
   <header>
     <h1>D&D 5e Toolkit</h1>
-    <p>DPR Calculator, Initiative Tracker, and Notes</p>
+    <p>DPR Calculator, Attack Roller, Initiative Tracker, and Notes</p>
     <nav class="tabs">
       <button class="tab active" data-tab="dpr">DPR Calculator</button>
+      <button class="tab" data-tab="roller">Attack Roller</button>
       <button class="tab" data-tab="init">Initiative Tracker</button>
       <button class="tab" data-tab="notes">Notes</button>
     </nav>
@@ -142,6 +143,20 @@
         <div id="avgBreak" class="foot small mono"></div>
       </section>
     </main>
+  </section>
+
+  <!-- Attack Roller -->
+  <section class="page" id="page-roller">
+    <div class="roller-wrap">
+      <div class="card">
+        <h2>Attack Roller</h2>
+        <div class="row" style="margin-bottom:10px;">
+          <button class="btn" id="rollerAdd">+ Add Attack</button>
+          <button class="btn danger" id="rollerClear">Clear All</button>
+        </div>
+        <div id="rollerList"></div>
+      </div>
+    </div>
   </section>
 
   <!-- Initiative Tracker -->
