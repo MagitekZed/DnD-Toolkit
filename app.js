@@ -387,6 +387,7 @@ function spellCard(idx,item){
       <span class="tag"><span class="small">P(fail)</span> <b class="mono" data-show="pfail"></b></span>
       <span class="tag"><span class="small">Exp dmg</span> <b class="mono" data-show="expected"></b></span>
       <button class="btn" data-action="recalc">Recalc</button>
+      <button class="btn" data-action="toRoller">To Roller</button>
       <button class="btn danger" data-action="remove">Remove</button>
     </div>
     <div class="foot small mono" data-show="detail"></div>
@@ -438,7 +439,13 @@ function renderRound(){
     const dupBtn = card.querySelector('[data-action="duplicate"]');
     if (dupBtn){ dupBtn.addEventListener("click",()=>{ const copy = JSON.parse(JSON.stringify(round[idx])); round.splice(idx+1,0,copy); if (gwmProfileIndex>idx) gwmProfileIndex++; if (cleaveProfileIndex>idx) cleaveProfileIndex++; renderRound(); recomputeRound(); }); }
     const toRollBtn = card.querySelector('[data-action="toRoller"]');
-    if (toRollBtn){ toRollBtn.addEventListener("click",()=>{ sendAttackToRoller(round[idx]); }); }
+    if (toRollBtn){
+      toRollBtn.addEventListener("click",()=>{
+        const item = round[idx];
+        if(item.kind==='spell') sendSpellToRoller(item);
+        else sendAttackToRoller(item);
+      });
+    }
     const recalcBtn = card.querySelector('[data-action="recalc"]');
     if (recalcBtn){ recalcBtn.addEventListener("click",()=>{ recalcCard(card, round[idx]); recomputeRound(); }); }
     recalcCard(card, round[idx]);
@@ -696,15 +703,18 @@ document.getElementById("calcAvg").addEventListener("click", ()=>{
 (function initDPR(){ loadDPRState(); showOne(); renderRound(); const el=document.getElementById("breakdown"); el.style.display="none"; document.getElementById("toggleBreakdown").textContent="Show breakdown"; })();
 
 /************ Attack Roller ************/
-const rollerAttacks = [];
-let vexAdv = false;
-function saveRollerState(){ try{ localStorage.setItem('rollerState', JSON.stringify(rollerAttacks)); }catch{} }
-function loadRollerState(){ try{ const data = JSON.parse(localStorage.getItem('rollerState')); if(Array.isArray(data)) rollerAttacks.splice(0,rollerAttacks.length,...data); }catch{} }
-function rollerCard(idx,item){ return `
-  <div class="card" data-idx="${idx}" style="margin-bottom:10px;">
+const rollerItems = [];
+function saveRollerState(){ try{ localStorage.setItem('rollerState', JSON.stringify(rollerItems)); }catch{} }
+function loadRollerState(){
+  try{
+    const data = JSON.parse(localStorage.getItem('rollerState'));
+    if(Array.isArray(data)) rollerItems.splice(0,rollerItems.length,...data.map(it=>it.kind?it:Object.assign({kind:'attack'},it)));
+  }catch{}
+}
+function rollerAttackCard(idx,item){ return `
+  <div class="card" data-idx="${idx}" data-kind="attack" style="margin-bottom:10px;">
     <div class="grid">
       <div class="col2"><label>+Hit</label><input type="number" data-field="atk" value="${item.atk}"/></div>
-      <div class="col2"><label>AC</label><input type="number" data-field="ac" value="${item.ac}"/></div>
       <div class="col3"><label>Roll Mode</label><select data-field="mode"><option value="normal" ${item.mode==='normal'?'selected':''}>Normal</option><option value="adv" ${item.mode==='adv'?'selected':''}>Advantage</option><option value="elven" ${item.mode==='elven'?'selected':''}>Elven Accuracy</option><option value="dis" ${item.mode==='dis'?'selected':''}>Disadvantage</option></select></div>
       <div class="col2"><label>Halfling</label><select data-field="halfling"><option value="false" ${!item.halfling?'selected':''}>Off</option><option value="true" ${item.halfling?'selected':''}>On</option></select></div>
       <div class="col1"><label>Crit ≥</label><select data-field="crit"><option value="20" ${item.crit===20?'selected':''}>20</option><option value="19" ${item.crit===19?'selected':''}>19</option><option value="18" ${item.crit===18?'selected':''}>18</option></select></div>
@@ -712,64 +722,85 @@ function rollerCard(idx,item){ return `
       <div class="col4"><label>Crit Bonus Dice</label><input type="text" class="mono" data-field="critBonusDice" value="${item.critBonusDice||''}"/></div>
       <div class="col2"><label>Dice double?</label><select data-field="critBonusDiceDouble"><option value="false" ${!item.critBonusDiceDouble?'selected':''}>No</option><option value="true" ${item.critBonusDiceDouble?'selected':''}>Yes</option></select></div>
       <div class="col2"><label>Crit Bonus Flat</label><input type="number" data-field="critBonusFlat" value="${item.critBonusFlat||0}"/></div>
-      <div class="col2"><label>Graze</label><select data-field="graze"><option value="false" ${!item.graze?'selected':''}>Off</option><option value="true" ${item.graze?'selected':''}>On</option></select></div>
-      <div class="col2"><label>Ability Mod</label><input type="number" data-field="abilityMod" value="${item.abilityMod||0}"/></div>
-      <div class="col2"><label>Vex</label><select data-field="vex"><option value="false" ${!item.vex?'selected':''}>Off</option><option value="true" ${item.vex?'selected':''}>On</option></select></div>
-      <div class="col2"><label>Cleave</label><select data-field="cleave"><option value="false" ${!item.cleave?'selected':''}>Off</option><option value="true" ${item.cleave?'selected':''}>On</option></select></div>
     </div>
     <div class="row" style="margin-top:8px;gap:8px;">
       <button class="btn" data-act="roll">Roll</button>
       <button class="btn danger" data-act="remove">Remove</button>
     </div>
-    <div class="foot small mono" data-show="result"></div>
+    <div class="foot mono" data-show="result"></div>
+  </div>`; }
+function rollerSpellCard(idx,item){ return `
+  <div class="card" data-idx="${idx}" data-kind="spell" style="margin-bottom:10px;">
+    <div class="grid">
+      <div class="col2"><label>DC</label><input type="number" data-field="dc" value="${item.dc}"/></div>
+      <div class="col2"><label>Target Save Bonus</label><input type="number" data-field="saveBonus" value="${item.saveBonus}"/></div>
+      <div class="col3"><label>Save Mode</label><select data-field="saveMode"><option value="normal" ${item.saveMode==='normal'?'selected':''}>Normal</option><option value="adv" ${item.saveMode==='adv'?'selected':''}>Advantage</option><option value="dis" ${item.saveMode==='dis'?'selected':''}>Disadvantage</option></select></div>
+      <div class="col3"><label>Success Outcome</label><select data-field="successRule"><option value="half" ${item.successRule==='half'?'selected':''}>Half on success</option><option value="none" ${item.successRule==='none'?'selected':''}>None on success</option></select></div>
+      <div class="col12"><label>Damage (no crits)</label><input type="text" class="mono" data-field="dmg" value="${item.dmg}"/></div>
+    </div>
+    <div class="row" style="margin-top:8px;gap:8px;">
+      <button class="btn" data-act="roll">Roll</button>
+      <button class="btn danger" data-act="remove">Remove</button>
+    </div>
+    <div class="foot mono" data-show="result"></div>
   </div>`; }
 function renderRoller(){
   const root=document.getElementById('rollerList');
-  root.innerHTML=rollerAttacks.map((it,idx)=>rollerCard(idx,it)).join('');
+  root.innerHTML=rollerItems.map((it,idx)=> it.kind==='spell'?rollerSpellCard(idx,it):rollerAttackCard(idx,it)).join('');
   root.querySelectorAll('.card').forEach(card=>{
     const idx=Number(card.getAttribute('data-idx'));
-    const obj=rollerAttacks[idx];
+    const obj=rollerItems[idx];
+    const kind=obj.kind;
     card.querySelectorAll('[data-field]').forEach(inp=>{
       inp.addEventListener('input',()=>{
         const field=inp.getAttribute('data-field');
         let val=inp.value;
-        if(['atk','ac','crit','critBonusFlat','abilityMod'].includes(field)) val=Number(val||0);
-        if(['halfling','graze','vex','cleave','critBonusDiceDouble'].includes(field)) val=(val==='true');
+        if(kind==='attack' && ['atk','crit','critBonusFlat'].includes(field)) val=Number(val||0);
+        if(kind==='spell' && ['dc','saveBonus'].includes(field)) val=Number(val||0);
+        if(kind==='attack' && ['halfling','critBonusDiceDouble'].includes(field)) val=(val==='true');
         obj[field]=val; saveRollerState();
       });
     });
-    card.querySelector('[data-act="roll"]').addEventListener('click',()=>{ rollAttack(obj,card); });
-    card.querySelector('[data-act="remove"]').addEventListener('click',()=>{ rollerAttacks.splice(idx,1); renderRoller(); saveRollerState(); });
+    card.querySelector('[data-act="roll"]').addEventListener('click',()=>{ (kind==='spell'?rollSpell:rollAttack)(obj,card); });
+    card.querySelector('[data-act="remove"]').addEventListener('click',()=>{ rollerItems.splice(idx,1); renderRoller(); saveRollerState(); });
   });
   saveRollerState();
 }
 function fmtRoll(r){ return r.parts.map(p=>p.type==='flat'?p.value:p.rolls.join('+')).join('+')+"="+r.total; }
 function rollAttack(att,card){
-  const mode=applyVexMode(att.mode, vexAdv);
-  vexAdv=false;
-  const d20=rollD20ModeDetailed(mode, att.halfling);
+  const d20=rollD20ModeDetailed(att.mode, att.halfling);
   const total=d20.result+att.atk;
-  let hit=false,crit=false;
-  if(d20.result===1) hit=false;
-  else if(d20.result===20){ hit=true; crit=true; }
-  else{ hit=(d20.result+att.atk)>=att.ac; if(hit && d20.result>=att.crit) crit=true; }
+  const crit=(d20.result>=att.crit);
   let dmgTotal=0, detail=[];
-  if(hit){
-    const base=rollDiceExprDetailed(att.dmg); dmgTotal+=base.total; detail.push(`base(${fmtRoll(base)})`);
-    if(crit){
-      const extra=rollDiceExprDetailed(att.dmg); dmgTotal+=extra.total; detail.push(`critExtra(${fmtRoll(extra)})`);
-      if(att.critBonusDice){ const b1=rollDiceExprDetailed(att.critBonusDice); dmgTotal+=b1.total; detail.push(`critBonus(${fmtRoll(b1)})`); if(att.critBonusDiceDouble){ const b2=rollDiceExprDetailed(att.critBonusDice); dmgTotal+=b2.total; detail.push(`critBonus2(${fmtRoll(b2)})`); } }
-      if(att.critBonusFlat){ dmgTotal+=Number(att.critBonusFlat); detail.push(`+${att.critBonusFlat}`); }
-    }
-    if(att.vex) vexAdv=true;
-  } else if(att.graze){ const mod=Number(att.abilityMod||0); dmgTotal+=mod; detail.push(`graze ${mod}`); }
-  const parts=`d20[${d20.rolls.join(',')}] => ${d20.result} + ${att.atk} = ${total}`;
-  const res=`${parts} vs AC ${att.ac} ⇒ ${crit?'CRIT':hit?'hit':'miss'}${dmgTotal?`, dmg ${dmgTotal} (${detail.join(' + ')})`:''}${att.cleave && hit?' | Cleave available':''}${att.vex && hit?' | Vex: next attack adv':''}`;
-  card.querySelector('[data-show="result"]').textContent=res;
+  const base=rollDiceExprDetailed(att.dmg); dmgTotal+=base.total; detail.push(`base(${fmtRoll(base)})`);
+  if(crit){
+    const extra=rollDiceExprDetailed(att.dmg); dmgTotal+=extra.total; detail.push(`critExtra(${fmtRoll(extra)})`);
+    if(att.critBonusDice){ const b1=rollDiceExprDetailed(att.critBonusDice); dmgTotal+=b1.total; detail.push(`critBonus(${fmtRoll(b1)})`); if(att.critBonusDiceDouble){ const b2=rollDiceExprDetailed(att.critBonusDice); dmgTotal+=b2.total; detail.push(`critBonus2(${fmtRoll(b2)})`); } }
+    if(att.critBonusFlat){ dmgTotal+=Number(att.critBonusFlat); detail.push(`+${att.critBonusFlat}`); }
+  }
+  const parts=`d20[${d20.rolls.join(',')}] + ${att.atk} = ${total}`;
+  const res=`<div><span class="roll-main">To Hit: ${total}${crit?' (CRIT)':''}</span> <span class="small">(${parts})</span></div><div><span class="roll-main">Damage: ${dmgTotal}</span> <span class="small">(${detail.join(' + ')})</span></div>`;
+  card.querySelector('[data-show="result"]').innerHTML=res;
 }
-document.getElementById('rollerAdd').addEventListener('click',()=>{ rollerAttacks.push({atk:5,ac:15,mode:'normal',halfling:false,crit:20,dmg:'1d8+3',critBonusDice:'',critBonusFlat:0,critBonusDiceDouble:false,graze:false,abilityMod:0,vex:false,cleave:false}); renderRoller(); });
-document.getElementById('rollerClear').addEventListener('click',()=>{ rollerAttacks.splice(0,rollerAttacks.length); renderRoller(); saveRollerState(); });
-function sendAttackToRoller(atk){ rollerAttacks.push({ atk:atk.atk, ac:atk.ac, mode:atk.mode, halfling:atk.halfling, crit:atk.crit, dmg:atk.dmg, critBonusDice:atk.critBonusDice||'', critBonusFlat:atk.critBonusFlat||0, critBonusDiceDouble:atk.critBonusDiceDouble||false, graze:atk.graze||false, abilityMod:atk.abilityMod||0, vex:atk.vex||false, cleave:atk.cleave||false }); renderRoller(); }
+function rollSpell(sp,card){
+  const d20=rollD20ModeDetailed(sp.saveMode,false);
+  const total=d20.result+sp.saveBonus;
+  const success=total>=sp.dc;
+  const base=rollDiceExprDetailed(sp.dmg);
+  let dmgTotal=base.total; let detail=[`base(${fmtRoll(base)})`];
+  if(success){
+    if(sp.successRule==='half'){ dmgTotal=Math.floor(dmgTotal/2); detail.push('half'); }
+    else if(sp.successRule==='none'){ dmgTotal=0; detail.push('negated'); }
+  }
+  const parts=`d20[${d20.rolls.join(',')}] + ${sp.saveBonus} = ${total} vs DC ${sp.dc}`;
+  const res=`<div><span class="roll-main">Save: ${total} ${success?'(success)':'(fail)'}</span> <span class="small">(${parts})</span></div><div><span class="roll-main">Damage: ${dmgTotal}</span> <span class="small">(${detail.join(' + ')})</span></div>`;
+  card.querySelector('[data-show="result"]').innerHTML=res;
+}
+document.getElementById('rollerAdd').addEventListener('click',()=>{ rollerItems.push({kind:'attack',atk:5,mode:'normal',halfling:false,crit:20,dmg:'1d8+3',critBonusDice:'',critBonusFlat:0,critBonusDiceDouble:false}); renderRoller(); });
+document.getElementById('rollerAddSpell').addEventListener('click',()=>{ rollerItems.push({kind:'spell',dc:15,saveBonus:3,saveMode:'normal',successRule:'half',dmg:'3d8'}); renderRoller(); });
+document.getElementById('rollerClear').addEventListener('click',()=>{ rollerItems.splice(0,rollerItems.length); renderRoller(); saveRollerState(); });
+function sendAttackToRoller(atk){ rollerItems.push({ kind:'attack', atk:atk.atk, mode:atk.mode, halfling:atk.halfling, crit:atk.crit, dmg:atk.dmg, critBonusDice:atk.critBonusDice||'', critBonusFlat:atk.critBonusFlat||0, critBonusDiceDouble:atk.critBonusDiceDouble||false }); renderRoller(); }
+function sendSpellToRoller(sp){ rollerItems.push({ kind:'spell', dc:sp.dc, saveBonus:sp.saveBonus, saveMode:sp.saveMode, successRule:sp.successRule, dmg:sp.dmg }); renderRoller(); }
 (function initRoller(){ loadRollerState(); renderRoller(); })();
 
 /************ Initiative Tracker ************/

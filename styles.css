@@ -45,6 +45,7 @@ input::placeholder{color:#677086}
 .stat{display:grid;gap:2px}
 .stat b{font-size:18px}
 .small{font-size:12px;color:var(--muted)}
+.roll-main{font-size:16px;font-weight:600;color:var(--ink)}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
 .tag{padding:2px 8px;border-radius:6px;border:1px solid var(--line);background:#0f1320;color:var(--ink)}
 .ok{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
