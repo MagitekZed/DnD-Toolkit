@@ -10,7 +10,8 @@ const pages = {
   dpr: document.getElementById('page-dpr'),
   roller: document.getElementById('page-roller'),
   init: document.getElementById('page-init'),
-  notes: document.getElementById('page-notes')
+  notes: document.getElementById('page-notes'),
+  quickref: document.getElementById('page-quickref')
 };
 tabButtons.forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -20,6 +21,17 @@ tabButtons.forEach(btn=>{
     pages[btn.dataset.tab].classList.add('active');
   });
 });
+
+// Render quick reference conditions
+const condList = document.getElementById('conditionsList');
+if (condList && typeof CONDITIONS !== 'undefined') {
+  CONDITIONS.forEach(c => {
+    const tile = document.createElement('div');
+    tile.className = 'card cond-card';
+    tile.innerHTML = `<h3>${c.name}</h3><p>${c.desc}</p>`;
+    condList.appendChild(tile);
+  });
+}
 
 // ----- Dice Helpers -----
 // These utilities parse and roll common dice expressions.
