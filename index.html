@@ -19,6 +19,7 @@
       <button class="tab" data-tab="roller">Attack Roller</button>
       <button class="tab" data-tab="init">Initiative Tracker</button>
       <button class="tab" data-tab="notes">Notes</button>
+      <button class="tab" data-tab="quickref">Quick Reference</button>
     </nav>
     <div class="tabspacer"></div>
   </header>
@@ -230,7 +231,16 @@
     </div>
   </section>
 
+  <!-- Quick Reference -->
+  <section class="page" id="page-quickref">
+    <div class="quickref-wrap">
+      <h2>Quick Reference</h2>
+      <div id="conditionsList" class="cond-grid"></div>
+    </div>
+  </section>
+
   <script>
+    document.write(`<script src="conditions.js?v=${ver}"><\/script>`);
     document.write(`<script src="app.js?v=${ver}"><\/script>`);
   </script>
 </body>
