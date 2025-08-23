@@ -241,14 +241,39 @@
 
   <!-- Quick Reference -->
   <section class="page" id="page-quickref">
-    <div class="quickref-wrap">
-      <h2>Quick Reference</h2>
+  <div class="quickref-wrap card">
+    <h2>Quick Reference</h2>
+    <nav class="subtabs" role="tablist">
+      <button class="subtab active" data-subtab="conditions" role="tab" aria-selected="true">Conditions</button>
+      <button class="subtab" data-subtab="masteries" role="tab" aria-selected="false">Weapon Masteries</button>
+      <button class="subtab" data-subtab="actions" role="tab" aria-selected="false">Action Types</button>
+    </nav>
+    <div class="tabspacer"></div>
+
+    <!-- Conditions Subpage -->
+    <div id="qr-conditions" class="subpage active" role="tabpanel">
+      <div class="small muted">2024 SRD conditions. Click a tile to expand.</div>
       <div id="conditionsList" class="cond-grid"></div>
     </div>
-  </section>
+
+    <!-- Weapon Masteries Subpage -->
+    <div id="qr-masteries" class="subpage" role="tabpanel">
+      <div class="small muted">Weapon Mastery properties from the 2024 Player’s Handbook.</div>
+      <div id="masteriesList" class="cond-grid"></div>
+    </div>
+
+    <!-- Action Types Subpage -->
+    <div id="qr-actions" class="subpage" role="tabpanel">
+      <div class="small muted">All action options available in the 2024 rules.</div>
+      <div id="actionsList" class="cond-grid"></div>
+    </div>
+  </div>
+</section>
 
   <script>
     document.write(`<script src="conditions.js?v=${ver}"><\/script>`);
+    document.write(`<script src="weapon_masteries.js?v=${ver}"><\/script>`);
+    document.write(`<script src="action_types_2024.js?v=${ver}"><\/script>`);
     document.write(`<script src="app.js?v=${ver}"><\/script>`);
     document.write(`<script src="attack_roller.js?v=${ver}"><\/script>`);
     document.write(`<script src="dpr_calculator.js?v=${ver}"><\/script>`);
