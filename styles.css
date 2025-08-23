@@ -137,6 +137,62 @@ input::placeholder{ color:#677086; }
 .init-compact .actions .btns{ justify-content:flex-end; }
 .init-compact .actions .chips{ flex:1; min-width:140px; }
 
+/* ---------- Initiative Tracker Condition Popover ---------- */
+.popover {
+  position: absolute;
+  z-index: 20;
+  background: #0f1320;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  max-width: 360px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.popover .cond-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.popover .cond-btn {
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #121726;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 12px;
+}
+.popover .cond-btn.active {
+  background: #2b4a69;
+  border-color: #3a6fa5;
+  color: #e8f6ff;
+}
+
+.popover input, 
+.popover select {
+  background: #0f1320;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.popover label.small {
+  color: var(--muted);
+}
+
+.popover button.btn {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+
 /* ---------- Quick Reference ---------- */
 .quickref-wrap{ padding:18px; max-width:1100px; margin:0 auto; }
 .subtabs{ display:flex; gap:8px; align-items:center; }
