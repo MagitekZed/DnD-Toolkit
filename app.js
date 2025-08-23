@@ -1,7 +1,7 @@
 /**
  * Client-side logic for the D&D 5e Toolkit web app.
  * Handles tab navigation, dice rolling utilities, damage-per-round math
- * and initiative tracking.
+ * initiative tracking, and quick reference subtabs.
  */
 
 /************ Tabs ************/
@@ -22,16 +22,75 @@ tabButtons.forEach(btn=>{
   });
 });
 
-// Render quick reference conditions
-const condList = document.getElementById('conditionsList');
-if (condList && typeof CONDITIONS !== 'undefined') {
-  CONDITIONS.forEach(c => {
-    const tile = document.createElement('div');
-    tile.className = 'card cond-card';
-    tile.innerHTML = `<h3>${c.name}</h3><p>${c.desc}</p>`;
-    condList.appendChild(tile);
-  });
+/************ Quick Reference (subtabs) ************/
+function renderConditions(filter='all'){
+  const root = document.getElementById('conditionsList');
+  if(!root || typeof CONDITIONS==='undefined'){ return; }
+  const filterSet = new Set(filter==='all' ? [] : [filter]);
+  const items = CONDITIONS.filter(c=> filter==='all' || (Array.isArray(c.tags) && c.tags.some(t=>filterSet.has(t))));
+  root.innerHTML = items.map(c=>{
+    const tags = (c.tags||[]).map(t=>`<span class="cond-tag">${t}</span>`).join('');
+    const list = (c.effects||[]).map(e=>`<li>${e}</li>`).join('');
+    const summary = (c.summary || 'Details');
+    return `<div class="cond-card">
+      <h3>${c.name}</h3>
+      <div class="cond-tags">${tags}</div>
+      <details>
+        <summary>${summary}</summary>
+        <ul>${list}</ul>
+      </details>
+    </div>`;
+  }).join('');
 }
+
+function renderMasteries(){
+  const root = document.getElementById('masteriesList');
+  if(!root || typeof WEAPON_MASTERIES === 'undefined') return;
+  root.innerHTML = WEAPON_MASTERIES.map(m=>{
+    const tags = (m.tags||[]).map(t=>`<span class="cond-tag">${t}</span>`).join('');
+    const list = (m.effects||[]).map(e=>`<li>${e}</li>`).join('');
+    const summary = m.summary || 'Details';
+    return `<div class="cond-card">
+      <h3>${m.name}</h3>
+      <div class="cond-tags">${tags}</div>
+      <details><summary>${summary}</summary><ul>${list}</ul></details>
+    </div>`;
+  }).join('');
+}
+function renderActions2024(){
+  const root = document.getElementById('actionsList');
+  if(!root || typeof ACTION_TYPES_2024 === 'undefined') return;
+  root.innerHTML = ACTION_TYPES_2024.map(a=>{
+    const list = (a.effects||[]).map(e=>`<li>${e}</li>`).join('');
+    const summary = a.summary || 'Details';
+    return `<div class="cond-card">
+      <h3>${a.name}</h3>
+      <details><summary>${summary}</summary><ul>${list}</ul></details>
+    </div>`;
+  }).join('');
+}
+
+(function initQuickRef(){
+  const subtabs = document.querySelectorAll('.subtab');
+  const subpages = document.querySelectorAll('.subpage');
+  subtabs.forEach(st=>{
+    st.addEventListener('click', ()=>{
+      subtabs.forEach(x=>x.classList.remove('active'));
+      st.classList.add('active');
+      const id = st.dataset.subtab;
+      subpages.forEach(p=>p.classList.remove('active'));
+      const page = document.getElementById('qr-'+id);
+      if(page) page.classList.add('active');
+    });
+  });
+  const condFilter = document.getElementById('condFilter');
+  if(condFilter){
+    condFilter.addEventListener('change', ()=> renderConditions(condFilter.value));
+  }
+  renderConditions('all');
+  renderMasteries();
+  renderActions2024();
+})();
 
 // ----- Dice Helpers -----
 // These utilities parse and roll common dice expressions.
@@ -134,4 +193,3 @@ function rollD20ModeDetailed(mode, halfling=false){
   else result=rolls[0];
   return { result, rolls, mode };
 }
-

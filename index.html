@@ -169,11 +169,15 @@
           <div>
             <h2>Initiative Tracker</h2>
             <div class="small muted">
-              Initiative Bonus is the actual bonus you roll with (usually includes DEX). The separate <b>DEX mod</b> here is for tiebreakers only.
+              Dex is always part of initiative. Use <b>DEX mod</b> for your Dexterity bonus, then use <b>Additional Bonus</b> for any other dice/flat bonuses (feats, items, etc.). DEX is still also used as a tiebreaker.
             </div>
           </div>
           <div class="row">
             <div class="stat"><span class="small">Round</span><b id="roundCounter">1</b></div>
+            <label class="inline small" style="gap:6px;margin-left:12px;">
+              <input type="checkbox" id="compactToggle" />
+              Compact view
+            </label>
           </div>
         </div>
 
@@ -182,21 +186,25 @@
             <label>Name</label>
             <input id="initName" type="text" placeholder="e.g., Thia, Ogre, Goblin #1"/>
           </div>
-          <div class="col4">
-            <label>Initiative Bonus (dice+flat)</label>
-            <input id="initBonusExpr" type="text" class="mono" placeholder="e.g., 1d4+3 or +5"/>
-          </div>
           <div class="col2">
-            <label>DEX mod (tiebreak)</label>
+            <label>DEX mod (tiebreak & added)</label>
             <input id="dexMod" type="number" placeholder="e.g., 3"/>
+          </div>
+          <div class="col4">
+            <label>Additional Bonus (dice+flat)</label>
+            <input id="initBonusExpr" type="text" class="mono" placeholder="e.g., 1d4+3 or +5"/>
           </div>
           <div class="col2">
             <label>Advantage on Init?</label>
             <select id="initAdv"><option value="normal">No</option><option value="adv">Advantage</option><option value="dis">Disadvantage</option></select>
           </div>
+</div>
 
           <div class="col12 row">
             <button class="btn primary" id="addInit">+ Add</button>
+            <button class="btn" id="addPC">+ PC</button>
+            <button class="btn" id="addEnemy">+ Enemy</button>
+            <button class="btn" id="addOther">+ Other</button>
             <button class="btn" id="rollAll">Roll All</button>
             <button class="btn" id="advanceInit">Advance Turn</button>
             <button class="btn" id="resetInit">Reset Rolls</button>

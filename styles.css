@@ -1,4 +1,4 @@
-/* Global styles for the D&D 5e Toolkit interface. */
+
 :root { --bg:#0f1115; --panel:#161922; --ink:#e6ebf5; --muted:#a7b0c0; --accent:#8bd3ff; --good:#72e6a0; --warn:#ffd27d; --bad:#ff9aa2; --line:#2a3142; }
 
 *{box-sizing:border-box}
@@ -65,9 +65,9 @@ input::placeholder{color:#677086}
 .init-wrap{padding:18px;max-width:1400px;margin:0 auto}
 .init-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
 .init-list{margin-top:12px;display:grid;gap:10px}
-.init-header{display:grid;grid-template-columns:50px 1.3fr 90px 110px 130px 1fr 220px;gap:10px;padding:0 10px;font-size:12px;color:#9fb0c7}
-.init-row{display:grid;grid-template-columns:50px 1.3fr 90px 110px 130px 1fr 220px;gap:10px;align-items:center;background:#0f1320;border:1px solid var(--line);border-radius:10px;padding:10px}
-.init-row.active{border-color:#74a7d8;box-shadow:0 0 0 3px rgba(116,167,216,0.4) inset;background:#142133}
+.init-header{display:grid;grid-template-columns:50px 0.9fr 90px 110px 130px 1fr 360px;gap:10px;padding:0 10px;font-size:12px;color:#9fb0c7}
+.init-row{display:grid;grid-template-columns:50px 0.9fr 90px 110px 130px 1fr 360px;gap:10px;align-items:center;background:#0f1320;border:1px solid var(--line);border-radius:10px;padding:10px}
+.init-row.active{background:#142133}
 .turn-arrow{text-align:center;font-size:24px}
 .init-name{font-weight:600}
 .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#0e1a2a;border:1px solid #2b4a69;border-radius:6px;padding:2px 6px}
@@ -76,7 +76,39 @@ input::placeholder{color:#677086}
 .cond-toggle{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:6px 0}
 .cond-toggle .cond-btn{background:#0e1320;border:1px solid #2a3142;border-radius:999px;padding:4px 8px;cursor:pointer;text-align:center;color:#e8f6ff}
 .cond-toggle .cond-btn.active{background:#2b4a69;border-color:#74a7d8;color:#e8f6ff}
-.popover{position:absolute;background:#0f1320;border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.35);z-index:10;min-width:340px}
+.popover{position:absolute;background:#0f1320;border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.35);z-index:10;min-width:420px}
+
+/* Row color-coding by entry type */
+.init-row.pc    { border-left: 4px solid #4aa3ff; }
+.init-row.enemy { border-left: 4px solid #ff5a5a; }
+.init-row.other { border-left: 4px solid #b3a84a; }
+
+/* Active highlight color matches type */
+.init-row.pc.active    { border-color:#4aa3ff; box-shadow:0 0 0 3px rgba(74,163,255,.35) inset, 0 0 0 1px rgba(74,163,255,.45); }
+.init-row.enemy.active { border-color:#ff5a5a; box-shadow:0 0 0 3px rgba(255,90,90,.35) inset, 0 0 0 1px rgba(255,90,90,.45); }
+.init-row.other.active { border-color:#b3a84a; box-shadow:0 0 0 3px rgba(179,168,74,.35) inset, 0 0 0 1px rgba(179,168,74,.45); }
+
+/* Make initiative totals pop */
+.init-row .mono.init-val{ font-size:18px; font-weight:800; text-align:center; }
+
+/* Positive vs negative condition chips */
+.chip.buff    { background:#132a17; border-color:#2a5a33; color:#d9ffde; }
+.chip.debuff  { background:#2a1317; border-color:#5a2a33; color:#ffd9de; }
+
+/* Compact view rules */
+.init-compact .init-header > :nth-child(4),
+.init-compact .init-header > :nth-child(5),
+.init-compact .init-header > :nth-child(6){ display:none; }
+.init-compact .init-row > :nth-child(4),
+.init-compact .init-row > :nth-child(5),
+.init-compact .init-row > :nth-child(6){ display:none; }
+.init-compact .init-header{ grid-template-columns:50px 1.0fr 110px 1.6fr; }
+.init-compact .init-row{ grid-template-columns:50px 1.0fr 110px 1.6fr; align-items:center; }
+.init-compact .init-row .mono.init-val{ font-size:20px; font-weight:900; }
+
+/* Contenteditable placeholder for notes */
+.note-field[placeholder]:empty:before{ content: attr(placeholder); color:#6b7488; }
+.note-field:focus{ outline:1px dashed #2b4a69; border-radius:6px; }
 
 /* Quick Reference */
 .quickref-wrap{padding:18px;max-width:1000px;margin:0 auto}
@@ -102,3 +134,21 @@ input::placeholder{color:#677086}
 .note-text:focus{outline:none}
 .note-delete{align-self:flex-start;padding:4px 8px}
 .note-row.dragging{opacity:.5}
+
+
+/* Contenteditable placeholder helper */
+[contenteditable][data-placeholder]:empty:before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+}
+
+
+.nowrap{flex-wrap:nowrap}
+
+
+/* Actions layout: chips + buttons */
+.init-row .actions{ display:flex; align-items:center; gap:10px; justify-content:center; }
+.init-row .actions .chips{ display:flex; gap:6px; flex-wrap:wrap; flex:1; }
+.init-row .actions .btns{ display:flex; gap:6px; justify-content:center; }
+.init-compact .init-row .actions{ justify-content:space-between; flex-wrap:nowrap; }
+.init-compact .init-row .actions .chips{ flex-wrap:nowrap; overflow:auto; }
